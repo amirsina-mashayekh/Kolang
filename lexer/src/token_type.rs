@@ -51,18 +51,20 @@ pub enum TokenType {
     KwBool,
     KwFloat,
     KwStr,
+    Invalid,
+    EOF,
 }
 
 impl std::fmt::Display for TokenType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TokenType::Iden(id) => f.write_str(id),
+            TokenType::Iden(id) => write!(f, "id:{id}"),
             TokenType::LiteralIntDec(n) => write!(f, "{n}"),
             TokenType::LiteralIntBin(n) => write!(f, "{:#b}", n),
             TokenType::LiteralIntOct(n) => write!(f, "{:#o}", n),
             TokenType::LiteralIntHex(n) => write!(f, "{:#x}", n),
-            TokenType::LiteralChar(c) => write!(f, "{c}"),
-            TokenType::LiteralFloat(num) => write!(f, "{num}"),
+            TokenType::LiteralChar(c) => write!(f, "'{c}'"),
+            TokenType::LiteralFloat(num) => write!(f, "{:e}", num),
             TokenType::LiteralStr(s) => write!(f, "\"{s}\""),
             TokenType::LPar => f.write_str("("),
             TokenType::RPar => f.write_str(")"),
@@ -108,6 +110,8 @@ impl std::fmt::Display for TokenType {
             TokenType::KwBool => f.write_str("kw:bool"),
             TokenType::KwFloat => f.write_str("kw:float"),
             TokenType::KwStr => f.write_str("kw:str"),
+            TokenType::Invalid => f.write_str("Invalid"),
+            TokenType::EOF => f.write_str("EOF"),
         }
     }
 }
