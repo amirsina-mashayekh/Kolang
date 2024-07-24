@@ -110,7 +110,7 @@ impl std::fmt::Display for TokenType {
             TokenType::KwBool => f.write_str("kw:bool"),
             TokenType::KwFloat => f.write_str("kw:float"),
             TokenType::KwStr => f.write_str("kw:str"),
-            TokenType::Invalid => f.write_str("Invalid"),
+            TokenType::Invalid => f.write_str("invalid"),
             TokenType::EOF => f.write_str("EOF"),
         }
     }
