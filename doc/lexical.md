@@ -35,7 +35,7 @@ Here is a brief list of Kolang tokens.
 |tilde              |tilde (bitwise not)                    |`~`                                |
 |semicolon          |statement terminator                   |`;`                                |
 |colon              |colon                                  |`:`                                |
-|coma               |coma                                   |`,`                                |
+|comma              |comma                                  |`,`                                |
 |period             |period                                 |`.`                                |
 |lc                 |line comment                           |`//.*`                             |
 |bc                 |block comment (not nested)             |`/\*[^*]*\*/`                      |
