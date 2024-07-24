@@ -1,3 +1,3 @@
 fn main() {
-    println!("Hello, Kolang!");
+    println!("Hello, Kolang! ⛏️");
 }
