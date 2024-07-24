@@ -4,7 +4,7 @@ Here is a brief list of Kolang tokens.
 
 |Token              |Description                            |Regex pattern                      |
 |-------------------|---------------------------------------|-----------------------------------|
-|identifier         |variable name, function name, etc.     |`[A-Za-z_][A-Za-z1-9_]*`           |
+|iden               |variable name, function name, etc.     |`[A-Za-z_][A-Za-z1-9_]*`           |
 |literal_int_dec    |decimal integer literal: 123, 0, etc.  |`[0-9]+`                           |
 |literal_int_bin    |binary integer literal: 0b1101, etc.   |`0[bB][01]+`                       |
 |literal_int_oct    |octal integer literal: 0o7231, etc.    |`0[oO][0-7]+`                      |
