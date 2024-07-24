@@ -1,6 +1,3 @@
-[package]
-name = "kolang"
-version = "0.0.1"
-edition = "2021"
-
-[dependencies]
+[workspace]
+members = ["lexer"]
+resolver = "2"
