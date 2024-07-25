@@ -89,6 +89,19 @@ impl<R: Read> Lexer<R> {
         Ok(num)
     }
 
+    fn match_str(&mut self) -> io::Result<String> {
+        let mut s = String::new();
+        let mut escape = false;
+
+        while self.current != '\"' || escape {
+            s.push(self.current);
+            escape = self.current == '\\';
+            self.next_char()?;
+        }
+
+        Ok(s)
+    }
+
     fn next_char(&mut self) -> io::Result<()> {
         let mut buf = [0u8];
         let c = self.stream.read(&mut buf)?;
