@@ -17,7 +17,7 @@ impl<R: Read> Lexer<R> {
     pub fn new(stream: R) -> Self {
         Self {
             line: 1,
-            column: 1,
+            column: 0,
             stream: BufReader::new(stream),
             current: ' ',
         }
@@ -100,9 +100,16 @@ impl<R: Read> Lexer<R> {
     }
 
     fn advance(&mut self) -> io::Result<()> {
+        if self.current == '\n' {
+            self.line += 1;
+            self.column = 1;
+        } else {
+            self.column += 1;
+        }
+        
         let c = self.next()?;
         self.current = c;
-
+        
         Ok(())
     }
 }
