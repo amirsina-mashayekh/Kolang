@@ -42,6 +42,17 @@ impl<R: Read> Lexer <R> {
         Ok(id)
     }
 
+    fn match_num(&mut self) -> io::Result<String> {
+        let mut num = String::new();
+
+        while '0' <= self.current && self.current <= '9' {
+            num.push(self.current);
+            self.advance()?;
+        }
+
+        Ok(num)
+    }
+
     fn next(&mut self) -> io::Result<char> {
         let mut buf = [0 as u8];
         
