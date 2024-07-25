@@ -1,9 +1,9 @@
 use crate::token_type::TokenType;
 
 pub struct Token {
-    token_type: TokenType,
-    line: usize,
-    column: usize,
+    pub token_type: TokenType,
+    pub line: usize,
+    pub column: usize,
 }
 
 impl std::fmt::Display for Token {
