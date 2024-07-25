@@ -89,11 +89,23 @@ impl<R: Read> Lexer<R> {
         Ok(num)
     }
 
+    fn match_char(&mut self) -> io::Result<String> {
+        let mut ch = String::from(self.current);
+        self.next_char()?;
+
+        if ch == "\\" && self.current != '\0' {
+            ch.push(self.current);
+            self.next_char()?;
+        }
+
+        Ok(ch)
+    }
+
     fn match_str(&mut self) -> io::Result<String> {
         let mut s = String::new();
         let mut escape = false;
 
-        while self.current != '\"' || escape {
+        while self.current != '\"' || self.current != '\0' || escape {
             s.push(self.current);
             escape = self.current == '\\';
             self.next_char()?;
