@@ -59,13 +59,13 @@ impl std::fmt::Display for TokenType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TokenType::Iden(id) => write!(f, "id:{id}"),
-            TokenType::LiteralIntDec(n) => write!(f, "int:{}", n),
-            TokenType::LiteralIntBin(n) => write!(f, "int:0b{}", n),
-            TokenType::LiteralIntOct(n) => write!(f, "int:0o{}", n),
-            TokenType::LiteralIntHex(n) => write!(f, "int:0x{}", n),
-            TokenType::LiteralChar(c) => write!(f, "'{c}'"),
-            TokenType::LiteralFloat(num) => write!(f, "float:{}", num),
-            TokenType::LiteralStr(s) => write!(f, "\"{s}\""),
+            TokenType::LiteralIntDec(n)
+            | TokenType::LiteralIntBin(n)
+            | TokenType::LiteralIntOct(n)
+            | TokenType::LiteralIntHex(n) => write!(f, "int:{n}"),
+            TokenType::LiteralChar(c) => write!(f, "char:{c}"),
+            TokenType::LiteralFloat(num) => write!(f, "float:{num}"),
+            TokenType::LiteralStr(s) => write!(f, "str:{s}"),
             TokenType::LPar => f.write_str("("),
             TokenType::RPar => f.write_str(")"),
             TokenType::LBracket => f.write_str("["),
@@ -91,8 +91,7 @@ impl std::fmt::Display for TokenType {
             TokenType::Colon => f.write_str(":"),
             TokenType::Comma => f.write_str(","),
             TokenType::Period => f.write_str("."),
-            TokenType::LC(_) => f.write_str("comment"),
-            TokenType::BC(_) => f.write_str("comment"),
+            TokenType::LC(_) | TokenType::BC(_) => f.write_str("comment"),
             TokenType::KwFor => f.write_str("kw:for"),
             TokenType::KwTo => f.write_str("kw:to"),
             TokenType::KwWhile => f.write_str("kw:while"),
