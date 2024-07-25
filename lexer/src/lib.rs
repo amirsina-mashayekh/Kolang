@@ -114,6 +114,32 @@ impl<R: Read> Lexer<R> {
         Ok(s)
     }
 
+    fn match_line_comment(&mut self) -> io::Result<String> {
+        let mut comment = String::new();
+
+        while self.current != '\n' && self.current != '\0' {
+            comment.push(self.current);
+            self.next_char()?;
+        }
+
+        Ok(comment)
+    }
+
+    fn match_block_comment(&mut self) -> io::Result<String> {
+        let mut comment = String::new();
+        let mut asterisk = false;
+
+        while self.current != '\0' && !(asterisk && self.current != '/') {
+            comment.push(self.current);
+            asterisk = self.current == '*';
+            self.next_char()?;
+        }
+        // Pop final asterisk
+        comment.pop();
+
+        Ok(comment)
+    }
+
     fn next_char(&mut self) -> io::Result<()> {
         let mut buf = [0u8];
         let c = self.stream.read(&mut buf)?;
