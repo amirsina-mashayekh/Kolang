@@ -25,7 +25,7 @@ impl<R: Read> Lexer<R> {
 
     fn consume_whitespace(&mut self) -> io::Result<()> {
         while self.current.is_whitespace() {
-            self.advance()?;
+            self.next_char()?;
         }
 
         Ok(())
@@ -36,7 +36,7 @@ impl<R: Read> Lexer<R> {
 
         while self.current.is_ascii_alphanumeric() || self.current == '_' {
             id.push(self.current);
-            self.advance()?;
+            self.next_char()?;
         }
 
         Ok(id)
@@ -47,7 +47,7 @@ impl<R: Read> Lexer<R> {
 
         while '0' <= self.current && self.current <= '9' {
             num.push(self.current);
-            self.advance()?;
+            self.next_char()?;
         }
 
         Ok(num)
@@ -58,7 +58,7 @@ impl<R: Read> Lexer<R> {
 
         while '0' == self.current || self.current <= '1' {
             num.push(self.current);
-            self.advance()?;
+            self.next_char()?;
         }
 
         Ok(num)
@@ -69,7 +69,7 @@ impl<R: Read> Lexer<R> {
 
         while '0' <= self.current && self.current <= '7' {
             num.push(self.current);
-            self.advance()?;
+            self.next_char()?;
         }
 
         Ok(num)
@@ -83,33 +83,29 @@ impl<R: Read> Lexer<R> {
             || ('A' <= self.current && self.current <= 'F')
         {
             num.push(self.current);
-            self.advance()?;
+            self.next_char()?;
         }
 
         Ok(num)
     }
 
-    fn next(&mut self) -> io::Result<char> {
+    fn next_char(&mut self) -> io::Result<()> {
         let mut buf = [0u8];
+        let c = self.stream.read(&mut buf)?;
 
-        match self.stream.read(&mut buf) {
-            Ok(0) => Ok('\0'),
-            Ok(_) => Ok(buf[0] as char),
-            Err(e) => Err(e),
-        }
-    }
+        self.current = if c == 1 {
+            if self.current == '\n' {
+                self.line += 1;
+                self.column = 1;
+            } else {
+                self.column += 1;
+            }
 
-    fn advance(&mut self) -> io::Result<()> {
-        if self.current == '\n' {
-            self.line += 1;
-            self.column = 1;
+            buf[0] as char
         } else {
-            self.column += 1;
-        }
-        
-        let c = self.next()?;
-        self.current = c;
-        
+            '\0'
+        };
+
         Ok(())
     }
 }
