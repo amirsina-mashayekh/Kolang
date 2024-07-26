@@ -1,3 +1,4 @@
+#[derive(Debug, PartialEq, Eq)]
 pub enum TokenType {
     Iden(String),
     LiteralIntDec(String),

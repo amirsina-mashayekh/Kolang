@@ -6,6 +6,7 @@ use token_type::TokenType;
 pub mod token;
 pub mod token_type;
 
+#[derive(Debug)]
 pub struct Lexer<R: Read> {
     line: usize,
     column: usize,
@@ -25,9 +26,10 @@ impl<R: Read> Lexer<R> {
 
     pub fn next(&mut self) -> io::Result<Token> {
         self.consume_whitespace()?;
-        
+
         let line = self.line;
         let column = self.column;
+        let mut consumed = false;
 
         let tok = match self.current {
             '(' => TokenType::LPar,
@@ -54,7 +56,7 @@ impl<R: Read> Lexer<R> {
                 } else {
                     TokenType::LT
                 }
-            },
+            }
             '>' => {
                 self.next_char()?;
                 if self.current == '=' {
@@ -62,7 +64,7 @@ impl<R: Read> Lexer<R> {
                 } else {
                     TokenType::GT
                 }
-            },
+            }
             '!' => {
                 self.next_char()?;
                 if self.current == '=' {
@@ -70,7 +72,7 @@ impl<R: Read> Lexer<R> {
                 } else {
                     TokenType::Invalid
                 }
-            },
+            }
             '=' => {
                 self.next_char()?;
                 if self.current == '=' {
@@ -78,12 +80,13 @@ impl<R: Read> Lexer<R> {
                 } else {
                     TokenType::Assign
                 }
-            },
+            }
             '/' => {
                 self.next_char()?;
                 match self.current {
                     '/' => {
                         self.next_char()?;
+                        consumed = true;
                         TokenType::LC("//".to_string() + &self.match_line_comment()?)
                     }
                     '*' => {
@@ -93,47 +96,49 @@ impl<R: Read> Lexer<R> {
                         if self.current != '\0' {
                             comment.push_str("*/");
                         }
-                        
+
                         TokenType::BC(comment)
                     }
                     _ => TokenType::Slash,
                 }
-            },
+            }
             '\'' => {
                 let mut c = String::from(self.current);
+                self.next_char()?;
                 c.push_str(&self.match_char()?);
                 match self.current {
                     '\'' => {
-                        self.next_char()?;
                         TokenType::LiteralChar(c + "\'")
-                    },
+                    }
                     _ => TokenType::Invalid,
                 }
-            },
+            }
             '"' => {
                 let mut s = String::from(self.current);
+                self.next_char()?;
                 s.push_str(&self.match_str()?);
                 match self.current {
                     '"' => {
-                        self.next_char()?;
                         TokenType::LiteralChar(s + "\"")
-                    },
+                    }
                     _ => TokenType::Invalid,
                 }
-            },
+            }
             '.' => {
                 self.next_char()?;
                 if self.current.is_digit(10) {
                     // float literal
-                    let mut f = self.current.to_string();
+                    let mut f = '.'.to_string();
                     f.push_str(&self.match_scientific()?);
+                    consumed = true;
                     TokenType::LiteralFloat(f)
                 } else {
                     TokenType::Period
                 }
-            },
+            }
             c => {
-                let mut tmp = String::from(c);
+                consumed = true;
+                let mut tmp = String::new();
                 if c.is_ascii_alphabetic() || c == '_' {
                     // identifier or keyword
                     tmp.push_str(&self.match_iden()?);
@@ -166,35 +171,39 @@ impl<R: Read> Lexer<R> {
                         match self.current {
                             'b' | 'B' => {
                                 tmp.push(self.current);
+                                self.next_char()?;
                                 tmp.push_str(&self.match_num(2)?);
                                 TokenType::LiteralIntBin(tmp)
-                            },
+                            }
                             'o' | 'O' => {
                                 tmp.push(self.current);
+                                self.next_char()?;
                                 tmp.push_str(&self.match_num(8)?);
                                 TokenType::LiteralIntOct(tmp)
-                            },
+                            }
                             'x' | 'X' => {
                                 tmp.push(self.current);
+                                self.next_char()?;
                                 tmp.push_str(&self.match_num(16)?);
                                 TokenType::LiteralIntHex(tmp)
-                            },
+                            }
                             '.' => {
                                 tmp.push(self.current);
-                                tmp.push_str(&self.match_num(10)?);
+                                tmp.push_str(&self.match_scientific()?);
                                 TokenType::LiteralFloat(tmp)
-                            },
+                            }
                             'e' => {
                                 tmp.push_str(&self.match_scientific()?);
                                 TokenType::LiteralFloat(tmp)
-                            },
+                            }
                             _ => TokenType::LiteralIntDec(tmp),
                         }
                     } else {
                         match self.current {
                             '.' => {
                                 tmp.push(self.current);
-                                tmp.push_str(&self.match_num(10)?);
+                                self.next_char()?;
+                                tmp.push_str(&self.match_scientific()?);
                                 TokenType::LiteralFloat(tmp)
                             }
                             'e' => {
@@ -207,8 +216,12 @@ impl<R: Read> Lexer<R> {
                 } else {
                     TokenType::Invalid
                 }
-            },
+            }
         };
+
+        if !consumed && tok != TokenType::Invalid {
+            self.next_char()?;
+        }
 
         Ok(Token {
             token_type: tok,
@@ -275,7 +288,7 @@ impl<R: Read> Lexer<R> {
         let mut s = String::new();
         let mut escape = false;
 
-        while self.current != '\"' || self.current != '\0' || escape {
+        while (self.current != '\"' && self.current != '\0') || escape {
             s.push(self.current);
             escape = self.current == '\\';
             self.next_char()?;
@@ -299,7 +312,7 @@ impl<R: Read> Lexer<R> {
         let mut comment = String::new();
         let mut asterisk = false;
 
-        while self.current != '\0' && !(asterisk && self.current != '/') {
+        while self.current != '\0' && !(asterisk && self.current == '/') {
             comment.push(self.current);
             asterisk = self.current == '*';
             self.next_char()?;
