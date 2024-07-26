@@ -24,8 +24,8 @@ impl<R: Read> Lexer<R> {
     }
 
     pub fn next(&mut self) -> io::Result<Token> {
-        self.consume_whitespace();
-        
+        self.consume_whitespace()?;
+
         let tok = match self.current {
             '(' => TokenType::LPar,
             ')' => TokenType::RPar,
@@ -36,7 +36,6 @@ impl<R: Read> Lexer<R> {
             '+' => TokenType::Plus,
             '-' => TokenType::Minus,
             '*' => TokenType::Asterisk,
-            '/' => TokenType::Slash,
             '%' => TokenType::Percent,
             '|' => TokenType::Pipe,
             '&' => TokenType::Amp,
@@ -78,27 +77,113 @@ impl<R: Read> Lexer<R> {
                 }
             },
             '/' => {
-                self.next_char();
+                self.next_char()?;
                 match self.current {
                     '/' => {
                         self.next_char();
-                        TokenType::LC(
-                            "//".to_string()
-                            + &self.match_line_comment()?
-                        )
-                    },
+                        TokenType::LC("//".to_string() + &self.match_line_comment()?)
+                    }
                     '*' => {
                         self.next_char();
-                        TokenType::BC(
-                            "/*".to_string()
-                            + &self.match_block_comment()?
-                            + "*/"
-                        )
-                    },
-                    _ => TokenType::Invalid,
+                        TokenType::BC("/*".to_string() + &self.match_block_comment()? + "*/")
+                    }
+                    _ => TokenType::Slash,
+                }
+            },
+            '.' => {
+                self.next_char();
+                if self.current.is_digit(10) {
+                    // float literal
+                    let mut f = self.current.to_string();
+                    f.push_str(&self.match_scientific()?);
+                    TokenType::LiteralFloat(f)
+                } else {
+                    TokenType::Period
+                }
+            },
+            c => {
+                let mut tmp = String::from(c);
+                if c.is_ascii_alphabetic() || c == '_' {
+                    // identifier or keyword
+                    tmp.push_str(&self.match_iden()?);
+                    match tmp.as_str() {
+                        "for" => TokenType::KwFor,
+                        "to" => TokenType::KwTo,
+                        "while" => TokenType::KwWhile,
+                        "if" => TokenType::KwIf,
+                        "else" => TokenType::KwElse,
+                        "true" => TokenType::KwTrue,
+                        "false" => TokenType::KwFalse,
+                        "or" => TokenType::KwOr,
+                        "and" => TokenType::KwAnd,
+                        "not" => TokenType::KwNot,
+                        "let" => TokenType::KwLet,
+                        "fn" => TokenType::KwFn,
+                        "int" => TokenType::KwInt,
+                        "char" => TokenType::KwChar,
+                        "bool" => TokenType::KwBool,
+                        "float" => TokenType::KwFloat,
+                        "str" => TokenType::KwStr,
+                        _ => TokenType::Iden(tmp),
+                    }
+                } else if c.is_digit(10) {
+                    // numeric (int or float)
+                    tmp.push_str(&self.match_num(10)?);
+
+                    if tmp.as_str() == "0" {
+                        // prefixed int?
+                        match self.current {
+                            'b' | 'B' => {
+                                tmp.push(self.current);
+                                tmp.push_str(&self.match_num(2)?);
+                                TokenType::LiteralIntBin(tmp)
+                            },
+                            'o' | 'O' => {
+                                tmp.push(self.current);
+                                tmp.push_str(&self.match_num(8)?);
+                                TokenType::LiteralIntOct(tmp)
+                            },
+                            'x' | 'X' => {
+                                tmp.push(self.current);
+                                tmp.push_str(&self.match_num(16)?);
+                                TokenType::LiteralIntHex(tmp)
+                            },
+                            '.' => {
+                                tmp.push(self.current);
+                                tmp.push_str(&self.match_num(10)?);
+                                TokenType::LiteralFloat(tmp)
+                            },
+                            'e' => {
+                                tmp.push_str(&self.match_scientific()?);
+                                TokenType::LiteralFloat(tmp)
+                            },
+                            _ => TokenType::LiteralIntDec(tmp),
+                        }
+                    } else {
+                        match self.current {
+                            '.' => {
+                                tmp.push(self.current);
+                                tmp.push_str(&self.match_num(10)?);
+                                TokenType::LiteralFloat(tmp)
+                            }
+                            'e' => {
+                                tmp.push_str(&self.match_scientific()?);
+                                TokenType::LiteralFloat(tmp)
+                            }
+                            _ => TokenType::LiteralIntDec(tmp),
+                        }
+                    }
+                } else {
+                    TokenType::Invalid
                 }
             },
         };
+
+        Ok(Token {
+            token_type: tok,
+            line: self.line,
+            column: self.column,
+        })
     }
 
     fn consume_whitespace(&mut self) -> io::Result<()> {
