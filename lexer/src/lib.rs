@@ -23,6 +23,84 @@ impl<R: Read> Lexer<R> {
         }
     }
 
+    pub fn next(&mut self) -> io::Result<Token> {
+        self.consume_whitespace();
+        
+        let tok = match self.current {
+            '(' => TokenType::LPar,
+            ')' => TokenType::RPar,
+            '[' => TokenType::LBracket,
+            ']' => TokenType::RBracket,
+            '{' => TokenType::LBrace,
+            '}' => TokenType::RBrace,
+            '+' => TokenType::Plus,
+            '-' => TokenType::Minus,
+            '*' => TokenType::Asterisk,
+            '/' => TokenType::Slash,
+            '%' => TokenType::Percent,
+            '|' => TokenType::Pipe,
+            '&' => TokenType::Amp,
+            '~' => TokenType::Tilde,
+            ';' => TokenType::Semicolon,
+            ':' => TokenType::Colon,
+            ',' => TokenType::Comma,
+            '\0' => TokenType::EOF,
+            '<' => {
+                self.next_char();
+                if self.current == '=' {
+                    TokenType::LEq
+                } else {
+                    TokenType::LT
+                }
+            },
+            '>' => {
+                self.next_char();
+                if self.current == '=' {
+                    TokenType::GEq
+                } else {
+                    TokenType::GT
+                }
+            },
+            '!' => {
+                self.next_char();
+                if self.current == '=' {
+                    TokenType::NEq
+                } else {
+                    TokenType::Invalid
+                }
+            },
+            '=' => {
+                self.next_char();
+                if self.current == '=' {
+                    TokenType::Eq
+                } else {
+                    TokenType::Assign
+                }
+            },
+            '/' => {
+                self.next_char();
+                match self.current {
+                    '/' => {
+                        self.next_char();
+                        TokenType::LC(
+                            "//".to_string()
+                            + &self.match_line_comment()?
+                        )
+                    },
+                    '*' => {
+                        self.next_char();
+                        TokenType::BC(
+                            "/*".to_string()
+                            + &self.match_block_comment()?
+                            + "*/"
+                        )
+                    },
+                    _ => TokenType::Invalid,
+                }
+            },
+        };
+    }
+
     fn consume_whitespace(&mut self) -> io::Result<()> {
         while self.current.is_whitespace() {
             self.next_char()?;
@@ -42,46 +120,10 @@ impl<R: Read> Lexer<R> {
         Ok(id)
     }
 
-    fn match_dec(&mut self) -> io::Result<String> {
+    fn match_num(&mut self, base: u32) -> io::Result<String> {
         let mut num = String::new();
 
-        while '0' <= self.current && self.current <= '9' {
-            num.push(self.current);
-            self.next_char()?;
-        }
-
-        Ok(num)
-    }
-
-    fn match_bin(&mut self) -> io::Result<String> {
-        let mut num = String::new();
-
-        while '0' == self.current || self.current <= '1' {
-            num.push(self.current);
-            self.next_char()?;
-        }
-
-        Ok(num)
-    }
-
-    fn match_oct(&mut self) -> io::Result<String> {
-        let mut num = String::new();
-
-        while '0' <= self.current && self.current <= '7' {
-            num.push(self.current);
-            self.next_char()?;
-        }
-
-        Ok(num)
-    }
-
-    fn match_hex(&mut self) -> io::Result<String> {
-        let mut num = String::new();
-
-        while ('0' <= self.current && self.current <= '9')
-            || ('a' <= self.current && self.current <= 'f')
-            || ('A' <= self.current && self.current <= 'F')
-        {
+        while self.current.is_digit(base) {
             num.push(self.current);
             self.next_char()?;
         }
@@ -99,6 +141,18 @@ impl<R: Read> Lexer<R> {
         }
 
         Ok(ch)
+    }
+
+    fn match_scientific(&mut self) -> io::Result<String> {
+        let mut num = self.match_num(10)?;
+
+        if self.current == 'e' || self.current == 'E' {
+            num.push(self.current);
+            self.next_char()?;
+            num.push_str(&self.match_num(10)?);
+        }
+
+        Ok(num)
     }
 
     fn match_str(&mut self) -> io::Result<String> {
