@@ -25,6 +25,9 @@ impl<R: Read> Lexer<R> {
 
     pub fn next(&mut self) -> io::Result<Token> {
         self.consume_whitespace()?;
+        
+        let line = self.line;
+        let column = self.column;
 
         let tok = match self.current {
             '(' => TokenType::LPar,
@@ -45,7 +48,7 @@ impl<R: Read> Lexer<R> {
             ',' => TokenType::Comma,
             '\0' => TokenType::EOF,
             '<' => {
-                self.next_char();
+                self.next_char()?;
                 if self.current == '=' {
                     TokenType::LEq
                 } else {
@@ -53,7 +56,7 @@ impl<R: Read> Lexer<R> {
                 }
             },
             '>' => {
-                self.next_char();
+                self.next_char()?;
                 if self.current == '=' {
                     TokenType::GEq
                 } else {
@@ -61,7 +64,7 @@ impl<R: Read> Lexer<R> {
                 }
             },
             '!' => {
-                self.next_char();
+                self.next_char()?;
                 if self.current == '=' {
                     TokenType::NEq
                 } else {
@@ -69,7 +72,7 @@ impl<R: Read> Lexer<R> {
                 }
             },
             '=' => {
-                self.next_char();
+                self.next_char()?;
                 if self.current == '=' {
                     TokenType::Eq
                 } else {
@@ -80,18 +83,46 @@ impl<R: Read> Lexer<R> {
                 self.next_char()?;
                 match self.current {
                     '/' => {
-                        self.next_char();
+                        self.next_char()?;
                         TokenType::LC("//".to_string() + &self.match_line_comment()?)
                     }
                     '*' => {
-                        self.next_char();
-                        TokenType::BC("/*".to_string() + &self.match_block_comment()? + "*/")
+                        self.next_char()?;
+                        let mut comment = "/*".to_string();
+                        comment.push_str(&self.match_block_comment()?);
+                        if self.current != '\0' {
+                            comment.push_str("*/");
+                        }
+                        
+                        TokenType::BC(comment)
                     }
                     _ => TokenType::Slash,
                 }
             },
+            '\'' => {
+                let mut c = String::from(self.current);
+                c.push_str(&self.match_char()?);
+                match self.current {
+                    '\'' => {
+                        self.next_char()?;
+                        TokenType::LiteralChar(c + "\'")
+                    },
+                    _ => TokenType::Invalid,
+                }
+            },
+            '"' => {
+                let mut s = String::from(self.current);
+                s.push_str(&self.match_str()?);
+                match self.current {
+                    '"' => {
+                        self.next_char()?;
+                        TokenType::LiteralChar(s + "\"")
+                    },
+                    _ => TokenType::Invalid,
+                }
+            },
             '.' => {
-                self.next_char();
+                self.next_char()?;
                 if self.current.is_digit(10) {
                     // float literal
                     let mut f = self.current.to_string();
@@ -181,8 +212,8 @@ impl<R: Read> Lexer<R> {
 
         Ok(Token {
             token_type: tok,
-            line: self.line,
-            column: self.column,
+            line,
+            column,
         })
     }
 
@@ -274,7 +305,9 @@ impl<R: Read> Lexer<R> {
             self.next_char()?;
         }
         // Pop final asterisk
-        comment.pop();
+        if self.current != '\0' {
+            comment.pop();
+        }
 
         Ok(comment)
     }
