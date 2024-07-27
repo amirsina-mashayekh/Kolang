@@ -3,7 +3,7 @@ use std::{
     io::{self, BufRead, Write},
 };
 
-use lexer::{token_type::TokenType, Lexer};
+use lexer::{token::TokenType, Lexer};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 

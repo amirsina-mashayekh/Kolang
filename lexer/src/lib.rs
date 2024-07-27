@@ -1,10 +1,8 @@
 use std::io::{self, BufReader, Read};
 
-use token::Token;
-use token_type::TokenType;
+use token::{Token, TokenType};
 
 pub mod token;
-pub mod token_type;
 
 #[derive(Debug)]
 pub struct Lexer<R: Read> {
@@ -107,9 +105,7 @@ impl<R: Read> Lexer<R> {
                 self.next_char()?;
                 c.push_str(&self.match_char()?);
                 match self.current {
-                    '\'' => {
-                        TokenType::LiteralChar(c + "\'")
-                    }
+                    '\'' => TokenType::LiteralChar(c + "\'"),
                     _ => TokenType::Invalid,
                 }
             }
@@ -118,9 +114,7 @@ impl<R: Read> Lexer<R> {
                 self.next_char()?;
                 s.push_str(&self.match_str()?);
                 match self.current {
-                    '"' => {
-                        TokenType::LiteralChar(s + "\"")
-                    }
+                    '"' => TokenType::LiteralChar(s + "\""),
                     _ => TokenType::Invalid,
                 }
             }
