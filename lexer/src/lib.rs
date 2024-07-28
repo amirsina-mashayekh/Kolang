@@ -1,18 +1,60 @@
+#![warn(missing_docs)]
+
+//! # Kolang lexer
+//! Utilities for tokenizing Kolang code.
+
 use std::io::{self, BufReader, Read};
 
 use token::{Token, TokenType};
 
+/// This module includes some utilities to store and represent Kolang tokens.
 pub mod token;
 
+/// The `Lexer<R>` struct allows you to scan Kolang code from any byte source
+/// which implements [`Read`] trait (file, network, in-memory buffer, etc.)
+/// and get tokens.
+///
+/// # Examples
+///
+/// ```
+/// use lexer::{Lexer, token::TokenType};
+///
+/// let source = "fn main(): int {}".as_bytes();
+/// let mut l = Lexer::new(source);
+///
+/// assert_eq!(l.next().unwrap().token_type, TokenType::KwFn);
+/// assert_eq!(l.next().unwrap().token_type, TokenType::Iden("main".to_string()));
+/// assert_eq!(l.next().unwrap().token_type, TokenType::LPar);
+/// assert_eq!(l.next().unwrap().token_type, TokenType::RPar);
+/// assert_eq!(l.next().unwrap().token_type, TokenType::Colon);
+/// assert_eq!(l.next().unwrap().token_type, TokenType::KwInt);
+/// assert_eq!(l.next().unwrap().token_type, TokenType::LBrace);
+/// assert_eq!(l.next().unwrap().token_type, TokenType::RBrace);
+/// assert_eq!(l.next().unwrap().token_type, TokenType::EOF);
+/// ```
 #[derive(Debug)]
 pub struct Lexer<R: Read> {
+    /// Current line of source code.
     line: usize,
+    /// Current column (character in line) of source code.
     column: usize,
+    /// Byte stream which provides source code.
     stream: BufReader<R>,
+    /// Current character of source code.
     current: char,
 }
 
 impl<R: Read> Lexer<R> {
+    /// Creates a new `Lexer<R>` with provided byte stream as the token source.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use lexer::Lexer;
+    ///
+    /// let source = "fn main(): int {}".as_bytes();
+    /// let mut l = Lexer::new(source);
+    /// ```
     pub fn new(stream: R) -> Self {
         Self {
             line: 1,
@@ -22,6 +64,26 @@ impl<R: Read> Lexer<R> {
         }
     }
 
+    /// Reads next token from provided byte stream, constructs and returns it.
+    /// If Lexer reaches end of stream, it will return [`TokenType::EOF`] tokens
+    /// until there are new bytes on the stream.
+    ///
+    /// # Errors
+    /// May return I/O error if something goes wrong while reading bytes
+    /// from source.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use lexer::{Lexer, token::TokenType};
+    ///
+    /// let source = "fn main".as_bytes();
+    /// let mut l = Lexer::new(source);
+    ///
+    /// assert_eq!(l.next().unwrap().token_type, TokenType::KwFn);
+    /// assert_eq!(l.next().unwrap().token_type, TokenType::Iden("main".to_string()));
+    /// assert_eq!(l.next().unwrap().token_type, TokenType::EOF);
+    /// ```
     pub fn next(&mut self) -> io::Result<Token> {
         self.consume_whitespace()?;
 
@@ -91,9 +153,6 @@ impl<R: Read> Lexer<R> {
                         self.next_char()?;
                         let mut comment = "/*".to_string();
                         comment.push_str(&self.match_block_comment()?);
-                        if self.current != '\0' {
-                            comment.push_str("*/");
-                        }
 
                         TokenType::BC(comment)
                     }
@@ -101,18 +160,14 @@ impl<R: Read> Lexer<R> {
                 }
             }
             '\'' => {
-                let mut c = String::from(self.current);
-                self.next_char()?;
-                c.push_str(&self.match_char()?);
+                let c = self.match_char()?;
                 match self.current {
                     '\'' => TokenType::LiteralChar(c + "\'"),
                     _ => TokenType::Invalid,
                 }
             }
             '"' => {
-                let mut s = String::from(self.current);
-                self.next_char()?;
-                s.push_str(&self.match_str()?);
+                let s = self.match_str()?;
                 match self.current {
                     '"' => TokenType::LiteralChar(s + "\""),
                     _ => TokenType::Invalid,
@@ -224,6 +279,8 @@ impl<R: Read> Lexer<R> {
         })
     }
 
+    /// Discards whitespace characters until it reaches a non-whitespace character
+    /// or end of stream.
     fn consume_whitespace(&mut self) -> io::Result<()> {
         while self.current.is_whitespace() {
             self.next_char()?;
@@ -232,6 +289,8 @@ impl<R: Read> Lexer<R> {
         Ok(())
     }
 
+    /// Reads next identifier (or keyword) token from stream and returns
+    /// it as a string. Consumes all bytes of token. May return empty string.
     fn match_iden(&mut self) -> io::Result<String> {
         let mut id = String::new();
 
@@ -243,6 +302,10 @@ impl<R: Read> Lexer<R> {
         Ok(id)
     }
 
+    /// Reads next integer numeric token from stream and returns
+    /// it as a string. `base` parameter defines radix or base of number
+    /// (binary, octal, decimal, hexadecimal, etc. ).  Consumes all bytes
+    /// of token. May return empty string.
     fn match_num(&mut self, base: u32) -> io::Result<String> {
         let mut num = String::new();
 
@@ -254,18 +317,8 @@ impl<R: Read> Lexer<R> {
         Ok(num)
     }
 
-    fn match_char(&mut self) -> io::Result<String> {
-        let mut ch = String::from(self.current);
-        self.next_char()?;
-
-        if ch == "\\" && self.current != '\0' {
-            ch.push(self.current);
-            self.next_char()?;
-        }
-
-        Ok(ch)
-    }
-
+    /// Reads next scientific number token from stream and returns
+    /// it as a string. Consumes all bytes of token.
     fn match_scientific(&mut self) -> io::Result<String> {
         let mut num = self.match_num(10)?;
 
@@ -278,8 +331,31 @@ impl<R: Read> Lexer<R> {
         Ok(num)
     }
 
+    /// Reads next character literal token from stream and returns
+    /// it as a string. Consumes two (normal) or three (escaped) bytes,
+    /// including starting and ending `'`.
+    fn match_char(&mut self) -> io::Result<String> {
+        let mut ch = String::from(self.current);
+        self.next_char()?;
+
+        ch.push(self.current);
+        self.next_char()?;
+
+        if ch == "'\\" && self.current != '\0' {
+            ch.push(self.current);
+            self.next_char()?;
+        }
+
+        Ok(ch)
+    }
+
+    /// Reads next string literal token from stream and returns
+    /// it as a string. Consumes all bytes of token, including
+    /// starting and ending `"`;
     fn match_str(&mut self) -> io::Result<String> {
-        let mut s = String::new();
+        let mut s = String::from(self.current);
+        self.next_char()?;
+
         let mut escape = false;
 
         while (self.current != '\"' && self.current != '\0') || escape {
@@ -291,6 +367,9 @@ impl<R: Read> Lexer<R> {
         Ok(s)
     }
 
+    /// Reads next line comment token from stream and returns
+    /// it as a string. Consumes all bytes of token
+    /// excluding starting `//`.
     fn match_line_comment(&mut self) -> io::Result<String> {
         let mut comment = String::new();
 
@@ -302,6 +381,9 @@ impl<R: Read> Lexer<R> {
         Ok(comment)
     }
 
+    /// Reads next block comment token from stream and returns
+    /// it as a string. Consumes all bytes of token excluding
+    /// starting `/*` but including final `*/`.
     fn match_block_comment(&mut self) -> io::Result<String> {
         let mut comment = String::new();
         let mut asterisk = false;
@@ -311,14 +393,21 @@ impl<R: Read> Lexer<R> {
             asterisk = self.current == '*';
             self.next_char()?;
         }
-        // Pop final asterisk
+        // Push final slash
         if self.current != '\0' {
-            comment.pop();
+            comment.push(self.current);
         }
 
         Ok(comment)
     }
 
+    /// Reads next byte from stream and puts it in `self.current` as `char`.
+    /// If reaches end of stream, it will put `'\0'` to indicate end of file.
+    /// Also updates `self.line` and `self.column` based on next character.
+    ///
+    /// # Errors
+    /// May return I/O error if something goes wrong while reading bytes
+    /// from source.
     fn next_char(&mut self) -> io::Result<()> {
         let mut buf = [0u8];
         let c = self.stream.read(&mut buf)?;
