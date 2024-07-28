@@ -1,7 +1,12 @@
 #[derive(Debug)]
+
+/// The `Token` struct stores and represents a token of Kolang code.
 pub struct Token {
+    /// Type of this token.
     pub token_type: TokenType,
+    /// Line of code where this token starts.
     pub line: usize,
+    /// Column of code where this token starts.
     pub column: usize,
 }
 
@@ -12,60 +17,115 @@ impl std::fmt::Display for Token {
 }
 
 #[derive(Debug, PartialEq, Eq)]
+/// A set of Kolang token types. Some types also store the value of token as string.
 pub enum TokenType {
+    /// Identifier: variable name, function name
     Iden(String),
+    /// Decimal integer literal: `123`, `0`
     LiteralIntDec(String),
+    /// Binary integer literal: `0b1101`, `0B1`
     LiteralIntBin(String),
+    /// Octal integer literal: `0o7231`, `0O44`
     LiteralIntOct(String),
+    /// Hexadecimal integer literal: `0xff`, `0XA1`
     LiteralIntHex(String),
+    /// Character literal: `'a'`, `'\0'`
     LiteralChar(String),
+    /// Floating-point literal: `9.1`, `2e3`, `.05`
     LiteralFloat(String),
+    /// String literal: `"Hello\tworld!"`
     LiteralStr(String),
+    /// Left parenthesis
     LPar,
+    /// Right parenthesis
     RPar,
+    /// Left bracket                           
     LBracket,
+    /// Right bracket                          
     RBracket,
+    /// Left curly bracket                     
     LBrace,
+    /// Right curly bracket                    
     RBrace,
+    /// Less than                              
     LT,
+    /// Greater than                           
     GT,
+    /// Less than or equal                     
     LEq,
+    /// Greater than or equal                  
     GEq,
+    /// Equals                                 
     Eq,
+    /// Not equal                              
     NEq,
+    /// Assignment                             
     Assign,
+    /// Plus sign                              
     Plus,
+    /// Minus sign                             
     Minus,
+    /// Asterisk                               
     Asterisk,
+    /// Slash                                  
     Slash,
+    /// Percent                                
     Percent,
+    /// Pipe (bitwise or)                      
     Pipe,
+    /// Ampersand (bitwise and)                
     Amp,
+    /// Tilde (bitwise not)                    
     Tilde,
+    /// Statement terminator                   
     Semicolon,
+    /// Colon                                  
     Colon,
+    /// Comma                                  
     Comma,
+    /// Period                                 
     Period,
+    /// `// Line comment`                          
     LC(String),
+    /// `/*Block comment*/` (not nested)             
     BC(String),
+    /// `for` keyword (loop)                   
     KwFor,
+    /// `to` keyword (loop range)              
     KwTo,
+    /// `while` keyword (loop)                 
     KwWhile,
+    /// `if` keyword (conditional)             
     KwIf,
+    /// `else` keyword (conditional)           
     KwElse,
+    /// `true` keyword (boolean)               
     KwTrue,
+    /// `false` keyword (boolean)              
     KwFalse,
+    /// `or` keyword (logical)                 
     KwOr,
+    /// `and` keyword (logical)                
     KwAnd,
+    /// `not` keyword (logical)                
     KwNot,
+    /// `let` keyword (variable def.)          
     KwLet,
+    /// `fn` keyword (function def.)           
     KwFn,
+    /// `int` keyword (integer type)           
     KwInt,
+    /// `char` keyword (character type)        
     KwChar,
+    /// `bool` keyword (boolean type)          
     KwBool,
+    /// `float` keyword (floating-point type)  
     KwFloat,
+    /// `str` keyword (string type)            
     KwStr,
+    /// Invalid (unmatched) token
     Invalid,
+    /// End of file
     EOF,
 }
 
