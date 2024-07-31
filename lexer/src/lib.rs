@@ -428,3 +428,70 @@ impl<R: Read> Lexer<R> {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{Lexer, TokenType};
+
+    #[test]
+    fn next_char() -> std::io::Result<()> {
+        let source_str = concat!(
+            "Never gonna give you up!\n",
+            "nEvEr gonna l3t you down___ \n",
+            " "
+        );
+        let source = source_str.as_bytes();
+
+        let mut l = Lexer::new(source);
+        l.next_char()?;
+
+        let mut str = String::new();
+        let mut ln = 1;
+        let mut col = 1;
+
+        for c in source_str.to_string().chars() {
+            assert_eq!(l.line, ln);
+            assert_eq!(l.column, col);
+            assert_eq!(c, l.current);
+
+            if c == '\n' {
+                ln += 1;
+                col = 1;
+            } else {
+                col += 1;
+            }
+
+            str.push(l.current);
+            l.next_char()?;
+        }
+
+        assert_eq!(l.current, '\0');
+        assert_eq!(source_str, str);
+
+        Ok(())
+    }
+
+    #[test]
+    fn whitespace() -> std::io::Result<()> {
+        let source_str = concat!(
+            "   Never gonnaRun        aroud\tand desert you   !    \n",
+            "Never gonna \t make you cry\n",
+            "Never gonna say goodbye \n"
+        );
+        let source = source_str.as_bytes();
+
+        let mut l = Lexer::new(source);
+        l.next_char()?;
+
+        for word in source_str.to_string().split_ascii_whitespace() {
+            l.consume_whitespace()?;
+            let mut chs = word.chars();
+            while !l.current.is_ascii_whitespace() {
+                assert_eq!(chs.next().unwrap(), l.current);
+                l.next_char()?;
+            }
+        }
+
+        Ok(())
+    }
+}
