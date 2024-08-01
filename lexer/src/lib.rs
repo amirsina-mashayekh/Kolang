@@ -161,15 +161,15 @@ impl<R: Read> Lexer<R> {
             }
             '\'' => {
                 let c = self.match_char()?;
-                match self.current {
-                    '\'' => TokenType::LiteralChar(c + "\'"),
+                match c.as_bytes().last() {
+                    Some(b'\'') => TokenType::LiteralChar(c),
                     _ => TokenType::Invalid,
                 }
             }
             '"' => {
                 let s = self.match_str()?;
-                match self.current {
-                    '"' => TokenType::LiteralChar(s + "\""),
+                match s.as_bytes().last() {
+                    Some(b'"') => TokenType::LiteralChar(s + "\""),
                     _ => TokenType::Invalid,
                 }
             }
@@ -303,9 +303,10 @@ impl<R: Read> Lexer<R> {
     }
 
     /// Reads next integer numeric token from stream and returns
-    /// it as a string. `base` parameter defines radix or base of number
-    /// (binary, octal, decimal, hexadecimal, etc. ).  Consumes all bytes
-    /// of token. May return empty string.
+    /// it as a string. Doesn't match prefixes (0b, 0x, etc.).
+    /// `base` parameter defines radix or base of number
+    /// (binary, octal, decimal, hexadecimal, etc. ).
+    /// Consumes all bytes of token. May return empty string.
     fn match_num(&mut self, base: u32) -> io::Result<String> {
         let mut num = String::new();
 
@@ -346,6 +347,11 @@ impl<R: Read> Lexer<R> {
             self.next_char()?;
         }
 
+        if self.current == '\'' {
+            ch.push(self.current);
+            self.next_char()?;
+        }
+
         Ok(ch)
     }
 
@@ -361,6 +367,11 @@ impl<R: Read> Lexer<R> {
         while (self.current != '\"' && self.current != '\0') || escape {
             s.push(self.current);
             escape = self.current == '\\';
+            self.next_char()?;
+        }
+
+        if self.current == '"' {
+            s.push(self.current);
             self.next_char()?;
         }
 
@@ -396,6 +407,7 @@ impl<R: Read> Lexer<R> {
         // Push final slash
         if self.current != '\0' {
             comment.push(self.current);
+            self.next_char()?;
         }
 
         Ok(comment)
@@ -431,7 +443,7 @@ impl<R: Read> Lexer<R> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Lexer, TokenType};
+    use super::{Lexer};
 
     #[test]
     fn next_char() -> std::io::Result<()> {
@@ -491,6 +503,233 @@ mod tests {
                 l.next_char()?;
             }
         }
+
+        Ok(())
+    }
+
+    #[test]
+    fn iden() -> std::io::Result<()> {
+        let source_str = concat!(
+            "never_gonna_tell_a_lie_and_hurt_you\n",
+            "sPoNg3cAsE\n",
+            "camelCase\n",
+            "PascalCase\n",
+            "lowercase\n",
+            "UPPERCASE\n",
+            "_startsWithUnderline\n",
+            "myvar123yourvar\n",
+            "_\n",
+            "789ourvar456\n",           // This is not a valid identifier, however it matches. This is handled by `next()`.
+            "twoVars inOneLine\n",
+        );
+        let source = source_str.as_bytes();
+
+        let mut l = Lexer::new(source);
+        l.next_char()?;
+
+        let mut idens = source_str.lines();
+
+        for _ in 0..10 {
+            assert_eq!(l.match_iden()?, idens.next().unwrap());
+            l.consume_whitespace()?;
+        }
+
+        let two_vars = idens.next().unwrap().split(' ');
+        for iden in two_vars {
+            assert_eq!(l.match_iden()?, iden);
+            l.consume_whitespace()?;
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn num() -> std::io::Result<()> {
+        let source_str = concat!(
+            "1234567890\n",
+            "00000\n",
+            "aAbBcCdDeEfF\n",
+            "a1b2c3d4e5f6\n",
+        );
+        let source = source_str.as_bytes();
+
+        let mut l = Lexer::new(source);
+        l.next_char()?;
+
+        let mut nums = source_str.lines();
+
+        assert_eq!(l.match_num(10)?, nums.next().unwrap());
+        l.consume_whitespace()?;
+        assert_eq!(l.match_num(10)?, nums.next().unwrap());
+        l.consume_whitespace()?;
+        assert_eq!(l.match_num(16)?, nums.next().unwrap());
+        l.consume_whitespace()?;
+        assert_eq!(l.match_num(10)?, "");
+        assert_eq!(l.match_num(16)?, nums.next().unwrap());
+
+        Ok(())
+    }
+
+    #[test]
+    fn sci() -> std::io::Result<()> {
+        let source_str = concat!(
+            "2e3\n",
+            "e03\n",
+        );
+        let source = source_str.as_bytes();
+
+        let mut l = Lexer::new(source);
+        l.next_char()?;
+
+        let mut nums = source_str.lines();
+
+        for _ in 0..2 {
+            assert_eq!(l.match_scientific()?, nums.next().unwrap());
+            l.consume_whitespace()?;
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn char() -> std::io::Result<()> {
+        let source_str = concat!(
+            "'m'\n",
+            "' '\n",
+            "'\\0'\n",
+            "'\\''\n",
+            "'\\n'\n",
+            "'a\n",
+            "'ffffffff'\n",
+            "'\\abcd'\n",
+        );
+        let source = source_str.as_bytes();
+
+        let mut l = Lexer::new(source);
+        l.next_char()?;
+
+        let mut chars = source_str.lines();
+
+        for _ in 0..5 {
+            assert_eq!(l.match_char()?, chars.next().unwrap());
+            l.consume_whitespace()?;
+        }
+
+        assert_eq!(l.match_char()?, chars.next().unwrap()[0..2]);
+        l.consume_whitespace()?;
+
+        assert_eq!(l.match_char()?, chars.next().unwrap()[0..2]);
+        l.consume_whitespace()?;
+        
+        while l.current != '\'' {
+            l.next_char()?;
+        }
+        l.next_char()?;
+        l.consume_whitespace()?;
+
+        assert_eq!(l.match_char()?, chars.next().unwrap()[0..3]);
+
+        Ok(())
+    }
+
+    #[test]
+    fn string() -> std::io::Result<()> {
+        let source_str = concat!(
+            "\"Hellllooooo there!\"\n",
+            "\"a string including \\escaped characters\"\n",
+            "\"a string including \\\"double\\\" quotes\"\n",
+            "\"a multiline\nstring\"\n",
+            "\"endless string?",
+        );
+        let source = source_str.as_bytes();
+
+        let mut l = Lexer::new(source);
+        l.next_char()?;
+
+        let mut strs = source_str.lines();
+
+        for _ in 0..3 {
+            assert_eq!(l.match_str()?, strs.next().unwrap());
+            l.consume_whitespace()?;
+        }
+
+        let mut multiline = strs.next().unwrap().to_string();
+        multiline.push('\n');
+        multiline.push_str(strs.next().unwrap());
+        assert_eq!(l.match_str()?, multiline);
+        l.consume_whitespace()?;
+
+        assert_eq!(l.match_str()?, strs.next().unwrap()[0..16]);
+        l.consume_whitespace()?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn line_comment() -> std::io::Result<()> {
+        let source_str = concat!(
+            "//simple comment\n",
+            "///strange comment\n",
+            "////more strange comment\n",
+            "// Neat comment.\n",
+            "// comment // in //comment\n",
+        );
+        let source = source_str.as_bytes();
+
+        let mut l = Lexer::new(source);
+        l.next_char()?;
+
+        let mut comments = source_str.lines();
+
+        for _ in 0..5 {
+            assert_eq!(l.match_line_comment()?, comments.next().unwrap());
+            l.consume_whitespace()?;
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn block_comment() -> std::io::Result<()> {
+        let source_str = concat!(
+            "/*comment*/\n",
+            "/** strange comment */\n",
+            "/* Neat comment */\n",
+            "/* comment including * asterisk */\n",
+            "/* not nested /* comment */\n",
+            "/* a\n * multiline\n * comment */\n",
+            "/* a /*nested*/ comment */\n",
+            "/*endless comment?",
+        );
+        let source = source_str.as_bytes();
+
+        let mut l = Lexer::new(source);
+        l.next_char()?;
+
+        let mut comments = source_str.lines();
+
+        for _ in 0..5 {
+            assert_eq!(l.match_block_comment()?, comments.next().unwrap());
+            l.consume_whitespace()?;
+        }
+
+        let mut multiline = comments.next().unwrap().to_string();
+        multiline.push('\n');
+        multiline.push_str(comments.next().unwrap());
+        multiline.push('\n');
+        multiline.push_str(comments.next().unwrap());
+        assert_eq!(l.match_block_comment()?, multiline);
+        l.consume_whitespace()?;
+
+        let nested = comments.next().unwrap();
+        assert_eq!(l.match_block_comment()?, nested[0..15]);
+        while l.current != '\n' {
+            l.next_char()?;
+        }
+        l.consume_whitespace()?;
+
+        assert_eq!(l.match_block_comment()?, comments.next().unwrap()[0..18]);
+        l.consume_whitespace()?;
 
         Ok(())
     }
