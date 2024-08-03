@@ -443,7 +443,16 @@ impl<R: Read> Lexer<R> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Lexer};
+    use super::Lexer;
+
+    fn create_lexer(code: &str) -> Lexer<&[u8]> {
+        let source = code.as_bytes();
+
+        let mut l = Lexer::new(source);
+        l.next_char().unwrap();
+
+        l
+    }
 
     #[test]
     fn next_char() -> std::io::Result<()> {
@@ -490,10 +499,7 @@ mod tests {
             "Never gonna \t make you cry\n",
             "Never gonna say goodbye \n"
         );
-        let source = source_str.as_bytes();
-
-        let mut l = Lexer::new(source);
-        l.next_char()?;
+        let mut l = create_lexer(&source_str);
 
         for word in source_str.to_string().split_ascii_whitespace() {
             l.consume_whitespace()?;
@@ -522,10 +528,7 @@ mod tests {
             "789ourvar456\n",           // This is not a valid identifier, however it matches. This is handled by `next()`.
             "twoVars inOneLine\n",
         );
-        let source = source_str.as_bytes();
-
-        let mut l = Lexer::new(source);
-        l.next_char()?;
+        let mut l = create_lexer(source_str);
 
         let mut idens = source_str.lines();
 
@@ -551,10 +554,7 @@ mod tests {
             "aAbBcCdDeEfF\n",
             "a1b2c3d4e5f6\n",
         );
-        let source = source_str.as_bytes();
-
-        let mut l = Lexer::new(source);
-        l.next_char()?;
+        let mut l = create_lexer(source_str);
 
         let mut nums = source_str.lines();
 
@@ -576,10 +576,7 @@ mod tests {
             "2e3\n",
             "e03\n",
         );
-        let source = source_str.as_bytes();
-
-        let mut l = Lexer::new(source);
-        l.next_char()?;
+        let mut l = create_lexer(source_str);
 
         let mut nums = source_str.lines();
 
@@ -603,10 +600,7 @@ mod tests {
             "'ffffffff'\n",
             "'\\abcd'\n",
         );
-        let source = source_str.as_bytes();
-
-        let mut l = Lexer::new(source);
-        l.next_char()?;
+        let mut l = create_lexer(source_str);
 
         let mut chars = source_str.lines();
 
@@ -641,10 +635,7 @@ mod tests {
             "\"a multiline\nstring\"\n",
             "\"endless string?",
         );
-        let source = source_str.as_bytes();
-
-        let mut l = Lexer::new(source);
-        l.next_char()?;
+        let mut l = create_lexer(source_str);
 
         let mut strs = source_str.lines();
 
@@ -674,10 +665,7 @@ mod tests {
             "// Neat comment.\n",
             "// comment // in //comment\n",
         );
-        let source = source_str.as_bytes();
-
-        let mut l = Lexer::new(source);
-        l.next_char()?;
+        let mut l = create_lexer(source_str);
 
         let mut comments = source_str.lines();
 
@@ -701,10 +689,7 @@ mod tests {
             "/* a /*nested*/ comment */\n",
             "/*endless comment?",
         );
-        let source = source_str.as_bytes();
-
-        let mut l = Lexer::new(source);
-        l.next_char()?;
+        let mut l = create_lexer(source_str);
 
         let mut comments = source_str.lines();
 
