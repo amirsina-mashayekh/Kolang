@@ -114,6 +114,7 @@ impl<R: Read> Lexer<R> {
                 if self.current == '=' {
                     TokenType::LEq
                 } else {
+                    consumed = true;
                     TokenType::LT
                 }
             }
@@ -122,6 +123,7 @@ impl<R: Read> Lexer<R> {
                 if self.current == '=' {
                     TokenType::GEq
                 } else {
+                    consumed = true;
                     TokenType::GT
                 }
             }
@@ -130,6 +132,7 @@ impl<R: Read> Lexer<R> {
                 if self.current == '=' {
                     TokenType::NEq
                 } else {
+                    consumed = true;
                     TokenType::Invalid
                 }
             }
@@ -138,15 +141,16 @@ impl<R: Read> Lexer<R> {
                 if self.current == '=' {
                     TokenType::Eq
                 } else {
+                    consumed = true;
                     TokenType::Assign
                 }
             }
             '/' => {
                 self.next_char()?;
+                consumed = true;
                 match self.current {
                     '/' => {
                         self.next_char()?;
-                        consumed = true;
                         TokenType::LC("//".to_string() + &self.match_line_comment()?)
                     }
                     '*' => {
@@ -177,11 +181,11 @@ impl<R: Read> Lexer<R> {
             }
             '.' => {
                 self.next_char()?;
+                consumed = true;
                 if self.current.is_digit(10) {
                     // float literal
                     let mut f = '.'.to_string();
                     f.push_str(&self.match_scientific()?);
-                    consumed = true;
                     TokenType::LiteralFloat(f)
                 } else {
                     TokenType::Period
