@@ -160,6 +160,7 @@ impl<R: Read> Lexer<R> {
                 }
             }
             '\'' => {
+                consumed = true;
                 let c = self.match_char()?;
                 match c.as_bytes().last() {
                     Some(b'\'') => TokenType::LiteralChar(c),
@@ -167,9 +168,10 @@ impl<R: Read> Lexer<R> {
                 }
             }
             '"' => {
+                consumed = true;
                 let s = self.match_str()?;
                 match s.as_bytes().last() {
-                    Some(b'"') => TokenType::LiteralChar(s + "\""),
+                    Some(b'"') => TokenType::LiteralStr(s),
                     _ => TokenType::Invalid,
                 }
             }

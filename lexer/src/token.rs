@@ -1,18 +1,40 @@
-#[derive(Debug)]
-
+#[derive(Debug, PartialEq, Eq)]
 /// The `Token` struct stores and represents a token of Kolang code.
 pub struct Token {
-    /// Type of this token.
-    pub token_type: TokenType,
     /// Line of code where this token starts.
     pub line: usize,
     /// Column of code where this token starts.
     pub column: usize,
+    /// Type of this token.
+    pub token_type: TokenType,
+}
+
+impl Token {
+    /// Creates a new `Token` with provided type in specified position.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use lexer::token::{Token, TokenType};
+    ///
+    /// let tok = Token::new(1, 1, TokenType::KwFn);
+    /// ```
+    pub fn new(line: usize, column: usize, token_type: TokenType) -> Self {
+        Self {
+            line,
+            column,
+            token_type,
+        }
+    }
 }
 
 impl std::fmt::Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}, Ln: {}, Col: {}", self.token_type, self.line, self.column)
+        write!(
+            f,
+            "{}, Ln: {}, Col: {}",
+            self.token_type, self.line, self.column
+        )
     }
 }
 
