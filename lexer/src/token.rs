@@ -135,6 +135,8 @@ pub enum TokenType {
     KwLet,
     /// `fn` keyword (function def.)           
     KwFn,
+    /// `return` keyword (function result)           
+    KwReturn,
     /// `int` keyword (integer type)           
     KwInt,
     /// `char` keyword (character type)        
@@ -200,6 +202,7 @@ impl std::fmt::Display for TokenType {
             TokenType::KwNot => f.write_str("kw:not"),
             TokenType::KwLet => f.write_str("kw:let"),
             TokenType::KwFn => f.write_str("kw:fn"),
+            TokenType::KwReturn => f.write_str("kw:return"),
             TokenType::KwInt => f.write_str("kw:int"),
             TokenType::KwChar => f.write_str("kw:char"),
             TokenType::KwBool => f.write_str("kw:bool"),

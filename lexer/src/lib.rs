@@ -210,6 +210,7 @@ impl<R: Read> Lexer<R> {
                         "not" => TokenType::KwNot,
                         "let" => TokenType::KwLet,
                         "fn" => TokenType::KwFn,
+                        "return" => TokenType::KwReturn,
                         "int" => TokenType::KwInt,
                         "char" => TokenType::KwChar,
                         "bool" => TokenType::KwBool,
@@ -332,6 +333,10 @@ impl<R: Read> Lexer<R> {
         if self.current == 'e' || self.current == 'E' {
             num.push(self.current);
             self.next_char()?;
+            if self.current == '+' || self.current == '-' {
+                num.push(self.current);
+                self.next_char()?;
+            }
             num.push_str(&self.match_num(10)?);
         }
 
@@ -581,12 +586,14 @@ mod tests {
         let source_str = concat!(
             "2e3\n",
             "e03\n",
+            "5e-10\n",
+            "7e+5\n",
         );
         let mut l = create_lexer(source_str);
 
         let mut nums = source_str.lines();
 
-        for _ in 0..2 {
+        for _ in 0..4 {
             assert_eq!(l.match_scientific()?, nums.next().unwrap());
             l.consume_whitespace()?;
         }

@@ -51,6 +51,7 @@ Here is a brief list of Kolang tokens.
 |kw_not             |`not` keyword (logical)                        |`not`                              |
 |kw_let             |`let` keyword (variable def.)                  |`let`                              |
 |kw_fn              |`fn` keyword (function def.)                   |`fn`                               |
+|kw_return          |`return` keyword (function result)             |`return`                           |
 |kw_int             |`int` keyword (integer type)                   |`int`                              |
 |kw_char            |`char` keyword (character type)                |`char`                             |
 |kw_bool            |`bool` keyword (boolean type)                  |`bool`                             |

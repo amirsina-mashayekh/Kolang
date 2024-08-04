@@ -1,6 +1,6 @@
 const SOUCE_CODE: &str = "fn main() {
     let a: int = -25;
-    let b = 3.1e1;
+    let b = 3.1e-1;
     let c: float;
     c = a + b * b/ a%b;
 
@@ -26,6 +26,8 @@ const SOUCE_CODE: &str = "fn main() {
      */
     for i=0to 50
         i.something();
+
+    return;
 }";
 
 use lexer::token::Token as TK;
@@ -55,7 +57,7 @@ fn lexer_test() -> std::io::Result<()> {
     l.next()?; // let
     l.next()?; // b
     l.next()?; // =
-    assert_eq!(l.next()?, TK::new(3, 13, LiteralFloat("3.1e1".into())));
+    assert_eq!(l.next()?, TK::new(3, 13, LiteralFloat("3.1e-1".into())));
     l.next()?; // ;
 
     l.next()?; // let
@@ -185,9 +187,12 @@ fn lexer_test() -> std::io::Result<()> {
     l.next()?; // )
     l.next()?; // ;
 
+    assert_eq!(l.next()?, TK::new(30, 5, KwReturn));
+    l.next()?; // ;
+
     l.next()?; // }
 
-    assert_eq!(l.next()?, TK::new(29, 1, EOF));
+    assert_eq!(l.next()?, TK::new(31, 1, EOF));
 
     Ok(())
 }
