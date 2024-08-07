@@ -12,6 +12,7 @@ param               = ident ":" type ;
 
 (* Statements *)
 stmt                = var_decl
+                    | assign_stmt
                     | expr_stmt
                     | if_stmt
                     | while_stmt
@@ -19,13 +20,14 @@ stmt                = var_decl
                     | return_stmt
                     | block_stmt ;
 
-var_decl            = "let" ident ":" type "=" expr ";" ;
+var_decl            = "let" ident ":" type [ "=" expr ] ";" ;
+assign_stmt         = ( ident "=" expr ";" ) | ( array_index "=" expr ";" ) ;
 expr_stmt           = expr ";" ;
 if_stmt             = "if" expr stmt [ "else" stmt ] ;
 while_stmt          = "while" expr stmt ;
 for_stmt            = "for" ident "=" expr "to" expr stmt ;
 return_stmt         = "return" [ expr ] ";" ;
-block_stmt          = "{" { stmt } } ;
+block_stmt          = "{" { stmt } "}" ;
 
 (* Expressions *)
 expr                = log_or_expr ;
@@ -39,7 +41,11 @@ unary_expr          = [ ( "not" | "~" | "-" ) ] primary_expr ;
 primary_expr        = ident
                     | lit
                     | func_call
+                    | array_index
                     | "(" expr ")" ;
+
+(* Array Indexing *)
+array_index         = ident "[" expr "]" ;
 
 (* Function Calls *)
 func_call           = ident "(" [ arg_list ] ")" ;
@@ -50,7 +56,8 @@ lit                 = int_lit
                     | float_lit
                     | char_lit
                     | str_lit
-                    | bool_lit ;
+                    | bool_lit
+                    | array_lit ;
 
 int_lit             = dec_lit | bin_lit | oct_lit | hex_lit ;
 dec_lit             = digit { digit } ;
@@ -61,10 +68,12 @@ float_lit           = ( digit { digit } "." digit { digit } | "." digit { digit 
 char_lit            = "'" ( char | esc_seq ) "'" ;
 str_lit             = "\"" { char | esc_seq | newline } "\"" ;
 bool_lit            = "true" | "false" ;
+array_lit           = "[" [ expr { "," expr } ] "]" ;
 
 (* Identifiers and Types *)
 ident               = ( letter | "_" ) { letter | digit | "_" } ;
-type                = "int" | "float" | "char" | "bool" | "str" ;
+type                = base_type [ "[" [ int_lit ] "]" ] ;
+base_type           = "int" | "float" | "char" | "bool" | "str" ;
 
 (* Characters and Digits *)
 letter              = "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m"

@@ -5,3 +5,7 @@ version = 3
 [[package]]
 name = "lexer"
 version = "0.0.1"
+
+[[package]]
+name = "parser"
+version = "0.0.1"
