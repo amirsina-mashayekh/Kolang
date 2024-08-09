@@ -10,13 +10,15 @@ use lexer::{
     Lexer,
 };
 
+mod syntax;
+
 /// The `Parser<R>` struct allows you to parse Kolang code from any byte source
 /// which implements [`Read`] trait (file, network, in-memory buffer, etc.).
 pub struct Parser<R: Read> {
     /// The `Lexer<R>` instance which provides source code tokens.
     lexer: Lexer<R>,
     /// The current token being processed.
-    current_token: Token,
+    current: Token,
 }
 
 impl<R: Read> Parser<R> {
@@ -35,7 +37,7 @@ impl<R: Read> Parser<R> {
     pub fn new(lexer: Lexer<R>) -> Self {
         Self {
             lexer,
-            current_token: Token::new(0, 0, TokenType::LC("".to_string())),
+            current: Token::new(0, 0, TokenType::LC("".to_string())),
         }
     }
 
@@ -52,8 +54,20 @@ impl<R: Read> Parser<R> {
     /// p.parse();
     /// ```
     pub fn parse(&mut self) -> io::Result<()> {
-        _ = self.lexer;
-        _ = self.current_token;
+        self.prog()?;
         todo!();
+    }
+
+    /// Advances to the next token.
+    fn next(&mut self) -> io::Result<()> {
+        self.current = self.lexer.next()?;
+        Ok(())
+    }
+
+    fn syntax_error(&mut self, msg: String) {
+        panic!(
+            "{}:{}: Syntax error: {}",
+            self.current.line, self.current.column, msg
+        );
     }
 }
