@@ -7,12 +7,10 @@ prog                = { func_def } ;
 func_def            = "fn" ident "(" [ param_list ] ")" [ ":" type ] stmt ;
 
 (* Parameters *)
-param_list          = param { "," param } ;
-param               = ident ":" type ;
+param_list          = typed_ident { "," typed_ident } [ "," ] ;
 
 (* Statements *)
-stmt                = var_decl
-                    | assign_stmt
+stmt                = let_stmt
                     | expr_stmt
                     | if_stmt
                     | while_stmt
@@ -20,8 +18,7 @@ stmt                = var_decl
                     | return_stmt
                     | block_stmt ;
 
-var_decl            = "let" ident ":" type [ "=" expr ] ";" ;
-assign_stmt         = ( ident "=" expr ";" ) | ( array_index "=" expr ";" ) ;
+let_stmt            = "let" typed_ident [ "=" expr ] ";" ;
 expr_stmt           = expr ";" ;
 if_stmt             = "if" expr stmt [ "else" stmt ] ;
 while_stmt          = "while" expr stmt ;
@@ -30,7 +27,8 @@ return_stmt         = "return" [ expr ] ";" ;
 block_stmt          = "{" { stmt } "}" ;
 
 (* Expressions *)
-expr                = log_or_expr ;
+expr                = assign_expr ;
+assign_expr         = ( ident "=" expr ) | log_or_expr ;
 log_or_expr         = log_and_expr { "or" log_and_expr } ;
 log_and_expr        = eq_expr { "and" eq_expr } ;
 eq_expr             = rel_expr { ( "==" | "!=" ) rel_expr } ;
@@ -49,7 +47,7 @@ array_index         = ident "[" expr "]" ;
 
 (* Function Calls *)
 func_call           = ident "(" [ arg_list ] ")" ;
-arg_list            = expr { "," expr } ;
+arg_list            = expr { "," expr } [ "," ] ;
 
 (* Literals *)
 lit                 = int_lit
@@ -68,9 +66,10 @@ float_lit           = ( digit { digit } "." digit { digit } | "." digit { digit 
 char_lit            = "'" ( char | esc_seq ) "'" ;
 str_lit             = "\"" { char | esc_seq | newline } "\"" ;
 bool_lit            = "true" | "false" ;
-array_lit           = "[" [ expr { "," expr } ] "]" ;
+array_lit           = "[" [ expr { "," expr } [ "," ] ] "]" ;
 
 (* Identifiers and Types *)
+typed_ident         = ident ":" type ;
 ident               = ( letter | "_" ) { letter | digit | "_" } ;
 type                = base_type [ "[" [ int_lit ] "]" ] ;
 base_type           = "int" | "float" | "char" | "bool" | "str" ;
