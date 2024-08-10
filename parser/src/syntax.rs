@@ -30,7 +30,6 @@ impl<R: Read> Parser<R> {
 
         if let TokenType::Iden(id) = &self.current.token_type {
             // Handle id
-            _ = id;
         } else {
             self.syntax_error("Expected identifier".into());
         }
@@ -173,7 +172,6 @@ impl<R: Read> Parser<R> {
 
         if let TokenType::Iden(id) = &self.current.token_type {
             // Handle id
-            _ = id;
         } else {
             self.syntax_error("Expected identifier".into());
         }
@@ -183,14 +181,14 @@ impl<R: Read> Parser<R> {
             self.syntax_error("Expected `=`".into());
         }
         self.next()?;
-        
+
         self.expr()?;
-        
+
         if self.current.token_type != TokenType::KwTo {
             self.syntax_error("Expected `to`".into());
         }
         self.next()?;
-        
+
         self.expr()?;
 
         self.stmt()?;
@@ -231,22 +229,174 @@ impl<R: Read> Parser<R> {
         Ok(())
     }
 
+    /// Parses the typed identifier.
     pub(super) fn typed_ident(&mut self) -> io::Result<()> {
-        todo!();
+        if let TokenType::Iden(id) = &self.current.token_type {
+            // Handle id
+        } else {
+            self.syntax_error("Expected identifier".into());
+        }
+        self.next()?;
+
+        if self.current.token_type != TokenType::Colon {
+            self.syntax_error("Expected `:`".into());
+        }
+        self.next()?;
+
+        match self.current.token_type {
+            TokenType::KwInt => {
+                // handle int
+            }
+            TokenType::KwStr => {
+                // handle string
+            }
+            TokenType::KwChar => {
+                // handle char
+            }
+            TokenType::KwFloat => {
+                // handle float
+            }
+            _ => {
+                self.syntax_error(format!(
+                    "Unexpected token `{}`. Expected type",
+                    self.current
+                ));
+            }
+        }
+        self.next()?;
+
+        Ok(())
     }
 
     /// Parses the expression.
     pub(super) fn expr(&mut self) -> io::Result<()> {
-        todo!();
+        self.log_or_expr()
     }
 
-    pub(super) fn assign_stmt(&mut self) -> io::Result<()> {
-        todo!();
+    /// Parses the logical or expression.
+    pub(super) fn log_or_expr(&mut self) -> io::Result<()> {
+        self.log_and_expr()?;
+
+        while self.current.token_type == TokenType::KwOr {
+            self.next()?;
+            self.log_and_expr()?;
+        }
+
+        Ok(())
     }
 
-    /// Parses literals.
-    pub(super) fn lit(&mut self) -> io::Result<()> {
-        match &self.current.token_type {
+    /// Parses the logical and expression.
+    pub(super) fn log_and_expr(&mut self) -> io::Result<()> {
+        self.eq_neq_expr()?;
+
+        while self.current.token_type == TokenType::KwAnd {
+            self.next()?;
+            self.eq_neq_expr()?;
+        }
+
+        Ok(())
+    }
+
+    /// Parses the equality and inequality expression.
+    pub(super) fn eq_neq_expr(&mut self) -> io::Result<()> {
+        self.comp_expr()?;
+
+        while self.current.token_type == TokenType::Eq || self.current.token_type == TokenType::NEq
+        {
+            self.next()?;
+            self.comp_expr()?;
+        }
+
+        Ok(())
+    }
+
+    /// Parses the comparison expression.
+    pub(super) fn comp_expr(&mut self) -> io::Result<()> {
+        self.bit_or_expr()?;
+
+        while self.current.token_type == TokenType::Lt
+            || self.current.token_type == TokenType::Gt
+            || self.current.token_type == TokenType::LEq
+            || self.current.token_type == TokenType::GEq
+        {
+            self.next()?;
+            self.bit_or_expr()?;
+        }
+
+        Ok(())
+    }
+
+    /// Parses the bitwise or expression.
+    pub(super) fn bit_or_expr(&mut self) -> io::Result<()> {
+        self.bit_and_expr()?;
+
+        while self.current.token_type == TokenType::Pipe {
+            self.next()?;
+            self.bit_and_expr()?;
+        }
+
+        Ok(())
+    }
+
+    /// Parses the bitwise and expression.
+    pub(super) fn bit_and_expr(&mut self) -> io::Result<()> {
+        self.add_sub_expr()?;
+
+        while self.current.token_type == TokenType::Amp {
+            self.next()?;
+            self.add_sub_expr()?;
+        }
+
+        Ok(())
+    }
+
+    /// Parses the addition and subtraction expression.
+    pub(super) fn add_sub_expr(&mut self) -> io::Result<()> {
+        self.mul_div_mod_expr()?;
+
+        while self.current.token_type == TokenType::Plus
+            || self.current.token_type == TokenType::Minus
+        {
+            self.next()?;
+            self.mul_div_mod_expr()?;
+        }
+
+        Ok(())
+    }
+
+    /// Parses the multiplication, division and modulo expression.
+    pub(super) fn mul_div_mod_expr(&mut self) -> io::Result<()> {
+        self.unary_expr()?;
+
+        while self.current.token_type == TokenType::Mul
+            || self.current.token_type == TokenType::Div
+            || self.current.token_type == TokenType::Mod
+        {
+            self.next()?;
+            self.unary_expr()?;
+        }
+
+        Ok(())
+    }
+
+    /// Parses unary expressions.
+    pub(super) fn unary_expr(&mut self) -> io::Result<()> {
+        match self.current.token_type {
+            TokenType::Plus | TokenType::Minus | TokenType::KwNot | TokenType::Tilde => {
+                self.next()?;
+                self.expr()?;
+            }
+            _ => {
+                self.primary_expr()?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Parses the primary expressions.
+    pub(super) fn primary_expr(&mut self) -> io::Result<()> {
+        match self.current.token_type {
             TokenType::LiteralIntDec(n) => {
                 // handle decimal int
                 self.next()?;
@@ -276,21 +426,77 @@ impl<R: Read> Parser<R> {
                 self.next()?;
             }
             TokenType::LBracket => {
-                self.array_lit()?;
+                // array_lit
+                self.next()?;
+                self.comma_list()?;
+                if self.current.token_type != TokenType::RBracket {
+                    self.syntax_error("Expected `]`".into());
+                }
+                self.next()?;
+            }
+            TokenType::LPar => {
+                self.next()?;
+                self.expr()?;
+                if self.current.token_type != TokenType::RPar {
+                    self.syntax_error("Expected `)`".into());
+                }
+                self.next()?;
+            }
+            TokenType::Iden(_) => {
+                self.next()?;
+                match self.current.token_type {
+                    TokenType::Assign => {
+                        // iden = expr
+                        self.next()?;
+                        self.expr()?;
+                    }
+                    TokenType::LPar => {
+                        // iden ( comma_list )
+                        self.next()?;
+                        self.comma_list()?;
+                        if self.current.token_type != TokenType::RPar {
+                            self.syntax_error("Expected `)`".into());
+                        }
+                        self.next()?;
+                    }
+                    TokenType::LBracket => {
+                        // iden [ expr ]
+                        self.next()?;
+                        self.expr()?;
+                        if self.current.token_type != TokenType::RBracket {
+                            self.syntax_error("Expected `]`".into());
+                        }
+                        self.next()?;
+                    }
+                    _ => {
+                        // iden
+                    },
+                }
             }
             _ => {
-                self.syntax_error(format!(
-                    "Unexpedted token `{}` Expected literal",
-                    self.current
-                ));
+                self.syntax_error("Expected expression".into());
             }
         }
 
         Ok(())
     }
 
-    /// Parses array literals.
-    pub(super) fn array_lit(&mut self) -> io::Result<()> {
-        todo!();
+    /// Parses the comma separated list.
+    pub(super) fn comma_list(&mut self) -> io::Result<()> {
+        if self.current.token_type == TokenType::RPar
+            || self.current.token_type == TokenType::RBracket
+            || self.current.token_type == TokenType::RBrace
+        {
+            return Ok(());
+        }
+
+        self.expr()?;
+
+        if self.current.token_type == TokenType::Comma {
+            self.next()?;
+            self.comma_list()?;
+        }
+
+        Ok(())
     }
 }

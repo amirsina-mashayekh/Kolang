@@ -60,7 +60,18 @@ impl<R: Read> Parser<R> {
 
     /// Advances to the next token.
     fn next(&mut self) -> io::Result<()> {
-        self.current = self.lexer.next()?;
+        loop {
+            self.current = self.lexer.next()?;
+
+            match self.current.token_type {
+                TokenType::LC(_) | TokenType::BC(_) => continue,
+                TokenType::Invalid(_) => {
+                    self.syntax_error(format!("Invalid token `{}`", self.current));
+                }
+                _ => break,
+            }
+        }
+
         Ok(())
     }
 

@@ -27,27 +27,33 @@ return_stmt         = "return" [ expr ] ";" ;
 block_stmt          = "{" { stmt } "}" ;
 
 (* Expressions *)
-expr                = assign_expr ;
-assign_expr         = ( ident "=" expr ) | log_or_expr ;
+expr                = log_or_expr ;
 log_or_expr         = log_and_expr { "or" log_and_expr } ;
-log_and_expr        = eq_expr { "and" eq_expr } ;
-eq_expr             = rel_expr { ( "==" | "!=" ) rel_expr } ;
-rel_expr            = add_expr { ( "<" | ">" | "<=" | ">=" ) add_expr } ;
-add_expr            = mul_expr { ( "+" | "-" ) mul_expr } ;
-mul_expr            = unary_expr { ( "*" | "/" | "%" ) unary_expr } ;
-unary_expr          = [ ( "not" | "~" | "-" ) ] primary_expr ;
+log_and_expr        = eq_neq_expr { "and" eq_neq_expr } ;
+eq_neq_expr         = comp_expr { ( "==" | "!=" ) comp_expr } ;
+comp_expr           = bit_or_expr { ( "<" | ">" | "<=" | ">=" ) bit_or_expr } ;
+bit_or_expr         = bit_and_expr { "|" bit_and_expr } ;
+bit_and_expr        = add_sub_expr { "&" add_sub_expr } ;
+add_sub_expr        = mul_div_mod_expr { ( "+" | "-" ) mul_div_mod_expr } ;
+mul_div_mod_expr    = unary_expr { ( "*" | "/" | "%" ) unary_expr } ;
+unary_expr          = [ ( "not" | "~" | "-" | "+" ) ] primary_expr ;
 primary_expr        = ident
+                    | assign_expr
                     | lit
                     | func_call
                     | array_index
                     | "(" expr ")" ;
 
+assign_expr         = ident "=" expr ;
+
 (* Array Indexing *)
 array_index         = ident "[" expr "]" ;
 
 (* Function Calls *)
-func_call           = ident "(" [ arg_list ] ")" ;
-arg_list            = expr { "," expr } [ "," ] ;
+func_call           = ident "(" [ comma_list ] ")" ;
+
+(* Comma List *)
+comma_list          = expr { "," expr } [ "," ] ;
 
 (* Literals *)
 lit                 = int_lit
@@ -56,6 +62,8 @@ lit                 = int_lit
                     | str_lit
                     | bool_lit
                     | array_lit ;
+
+array_lit           = "[" [ comma_list ] "]" ;
 
 int_lit             = dec_lit | bin_lit | oct_lit | hex_lit ;
 dec_lit             = digit { digit } ;
@@ -66,7 +74,6 @@ float_lit           = ( digit { digit } "." digit { digit } | "." digit { digit 
 char_lit            = "'" ( char | esc_seq ) "'" ;
 str_lit             = "\"" { char | esc_seq | newline } "\"" ;
 bool_lit            = "true" | "false" ;
-array_lit           = "[" [ expr { "," expr } [ "," ] ] "]" ;
 
 (* Identifiers and Types *)
 typed_ident         = ident ":" type ;
