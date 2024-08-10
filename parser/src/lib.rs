@@ -54,8 +54,10 @@ impl<R: Read> Parser<R> {
     /// p.parse();
     /// ```
     pub fn parse(&mut self) -> io::Result<()> {
+        self.next()?;
         self.prog()?;
-        todo!();
+
+        Ok(())
     }
 
     /// Advances to the next token.

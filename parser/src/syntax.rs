@@ -22,7 +22,7 @@ impl<R: Read> Parser<R> {
     }
 
     /// Parses the function.
-    pub(super) fn func(&mut self) -> io::Result<()> {
+    fn func(&mut self) -> io::Result<()> {
         if self.current.token_type != TokenType::KwFn {
             self.syntax_error("Expected `fn`".into());
         }
@@ -53,7 +53,7 @@ impl<R: Read> Parser<R> {
     }
 
     /// Parses the function parameters list.
-    pub(super) fn param_list(&mut self) -> io::Result<()> {
+    fn param_list(&mut self) -> io::Result<()> {
         if self.current.token_type == TokenType::RPar {
             // empty param list
             return Ok(());
@@ -70,7 +70,7 @@ impl<R: Read> Parser<R> {
     }
 
     /// Parses the statement.
-    pub(super) fn stmt(&mut self) -> io::Result<()> {
+    fn stmt(&mut self) -> io::Result<()> {
         match self.current.token_type {
             TokenType::KwLet => {
                 self.let_stmt()?;
@@ -99,7 +99,7 @@ impl<R: Read> Parser<R> {
     }
 
     /// Parses the let statement.
-    pub(super) fn let_stmt(&mut self) -> io::Result<()> {
+    fn let_stmt(&mut self) -> io::Result<()> {
         if self.current.token_type != TokenType::KwLet {
             self.syntax_error("Expected `let`".into());
         }
@@ -115,23 +115,25 @@ impl<R: Read> Parser<R> {
         if self.current.token_type != TokenType::Semicolon {
             self.syntax_error("Expected `;`".into());
         }
+        self.next()?;
 
         Ok(())
     }
 
     /// Parses the expression statement.
-    pub(super) fn expr_stmt(&mut self) -> io::Result<()> {
+    fn expr_stmt(&mut self) -> io::Result<()> {
         self.expr()?;
 
         if self.current.token_type != TokenType::Semicolon {
             self.syntax_error("Expected `;`".into());
         }
+        self.next()?;
 
         Ok(())
     }
 
     /// Parses the if statement.
-    pub(super) fn if_stmt(&mut self) -> io::Result<()> {
+    fn if_stmt(&mut self) -> io::Result<()> {
         if self.current.token_type != TokenType::KwIf {
             self.syntax_error("Expected `if`".into());
         }
@@ -150,7 +152,7 @@ impl<R: Read> Parser<R> {
     }
 
     /// Parses the while statement.
-    pub(super) fn while_stmt(&mut self) -> io::Result<()> {
+    fn while_stmt(&mut self) -> io::Result<()> {
         if self.current.token_type != TokenType::KwWhile {
             self.syntax_error("Expected `while`".into());
         }
@@ -164,7 +166,7 @@ impl<R: Read> Parser<R> {
     }
 
     /// Parses the for statement.
-    pub(super) fn for_stmt(&mut self) -> io::Result<()> {
+    fn for_stmt(&mut self) -> io::Result<()> {
         if self.current.token_type != TokenType::KwFor {
             self.syntax_error("Expected `for`".into());
         }
@@ -197,7 +199,7 @@ impl<R: Read> Parser<R> {
     }
 
     /// Parses the return statement.
-    pub(super) fn return_stmt(&mut self) -> io::Result<()> {
+    fn return_stmt(&mut self) -> io::Result<()> {
         if self.current.token_type != TokenType::KwReturn {
             self.syntax_error("Expected `return`".into());
         }
@@ -208,18 +210,19 @@ impl<R: Read> Parser<R> {
         if self.current.token_type != TokenType::Semicolon {
             self.syntax_error("Expected `;`".into());
         }
+        self.next()?;
 
         Ok(())
     }
 
     /// Parses the block statement.
-    pub(super) fn block_stmt(&mut self) -> io::Result<()> {
+    fn block_stmt(&mut self) -> io::Result<()> {
         if self.current.token_type != TokenType::LBrace {
             self.syntax_error("Expected `{`".into());
         }
         self.next()?;
 
-        self.stmt()?;
+        self.multi_stmt()?;
 
         if self.current.token_type != TokenType::RBrace {
             self.syntax_error("Expected `}`".into());
@@ -229,8 +232,21 @@ impl<R: Read> Parser<R> {
         Ok(())
     }
 
+    /// Parses consecutive statements.
+    fn multi_stmt(&mut self) -> io::Result<()> {
+        if self.current.token_type == TokenType::RBrace {
+            return Ok(());
+        }
+
+        self.stmt()?;
+
+        self.multi_stmt()?;
+
+        Ok(())
+    }
+
     /// Parses the typed identifier.
-    pub(super) fn typed_ident(&mut self) -> io::Result<()> {
+    fn typed_ident(&mut self) -> io::Result<()> {
         if let TokenType::Iden(id) = &self.current.token_type {
             // Handle id
         } else {
@@ -269,12 +285,12 @@ impl<R: Read> Parser<R> {
     }
 
     /// Parses the expression.
-    pub(super) fn expr(&mut self) -> io::Result<()> {
+    fn expr(&mut self) -> io::Result<()> {
         self.log_or_expr()
     }
 
     /// Parses the logical or expression.
-    pub(super) fn log_or_expr(&mut self) -> io::Result<()> {
+    fn log_or_expr(&mut self) -> io::Result<()> {
         self.log_and_expr()?;
 
         while self.current.token_type == TokenType::KwOr {
@@ -286,7 +302,7 @@ impl<R: Read> Parser<R> {
     }
 
     /// Parses the logical and expression.
-    pub(super) fn log_and_expr(&mut self) -> io::Result<()> {
+    fn log_and_expr(&mut self) -> io::Result<()> {
         self.eq_neq_expr()?;
 
         while self.current.token_type == TokenType::KwAnd {
@@ -298,7 +314,7 @@ impl<R: Read> Parser<R> {
     }
 
     /// Parses the equality and inequality expression.
-    pub(super) fn eq_neq_expr(&mut self) -> io::Result<()> {
+    fn eq_neq_expr(&mut self) -> io::Result<()> {
         self.comp_expr()?;
 
         while self.current.token_type == TokenType::Eq || self.current.token_type == TokenType::NEq
@@ -311,11 +327,11 @@ impl<R: Read> Parser<R> {
     }
 
     /// Parses the comparison expression.
-    pub(super) fn comp_expr(&mut self) -> io::Result<()> {
+    fn comp_expr(&mut self) -> io::Result<()> {
         self.bit_or_expr()?;
 
-        while self.current.token_type == TokenType::Lt
-            || self.current.token_type == TokenType::Gt
+        while self.current.token_type == TokenType::LT
+            || self.current.token_type == TokenType::GT
             || self.current.token_type == TokenType::LEq
             || self.current.token_type == TokenType::GEq
         {
@@ -327,7 +343,7 @@ impl<R: Read> Parser<R> {
     }
 
     /// Parses the bitwise or expression.
-    pub(super) fn bit_or_expr(&mut self) -> io::Result<()> {
+    fn bit_or_expr(&mut self) -> io::Result<()> {
         self.bit_and_expr()?;
 
         while self.current.token_type == TokenType::Pipe {
@@ -339,7 +355,7 @@ impl<R: Read> Parser<R> {
     }
 
     /// Parses the bitwise and expression.
-    pub(super) fn bit_and_expr(&mut self) -> io::Result<()> {
+    fn bit_and_expr(&mut self) -> io::Result<()> {
         self.add_sub_expr()?;
 
         while self.current.token_type == TokenType::Amp {
@@ -351,7 +367,7 @@ impl<R: Read> Parser<R> {
     }
 
     /// Parses the addition and subtraction expression.
-    pub(super) fn add_sub_expr(&mut self) -> io::Result<()> {
+    fn add_sub_expr(&mut self) -> io::Result<()> {
         self.mul_div_mod_expr()?;
 
         while self.current.token_type == TokenType::Plus
@@ -365,12 +381,12 @@ impl<R: Read> Parser<R> {
     }
 
     /// Parses the multiplication, division and modulo expression.
-    pub(super) fn mul_div_mod_expr(&mut self) -> io::Result<()> {
+    fn mul_div_mod_expr(&mut self) -> io::Result<()> {
         self.unary_expr()?;
 
-        while self.current.token_type == TokenType::Mul
-            || self.current.token_type == TokenType::Div
-            || self.current.token_type == TokenType::Mod
+        while self.current.token_type == TokenType::Asterisk
+            || self.current.token_type == TokenType::Slash
+            || self.current.token_type == TokenType::Percent
         {
             self.next()?;
             self.unary_expr()?;
@@ -380,7 +396,7 @@ impl<R: Read> Parser<R> {
     }
 
     /// Parses unary expressions.
-    pub(super) fn unary_expr(&mut self) -> io::Result<()> {
+    fn unary_expr(&mut self) -> io::Result<()> {
         match self.current.token_type {
             TokenType::Plus | TokenType::Minus | TokenType::KwNot | TokenType::Tilde => {
                 self.next()?;
@@ -395,8 +411,8 @@ impl<R: Read> Parser<R> {
     }
 
     /// Parses the primary expressions.
-    pub(super) fn primary_expr(&mut self) -> io::Result<()> {
-        match self.current.token_type {
+    fn primary_expr(&mut self) -> io::Result<()> {
+        match &self.current.token_type {
             TokenType::LiteralIntDec(n) => {
                 // handle decimal int
                 self.next()?;
@@ -442,7 +458,7 @@ impl<R: Read> Parser<R> {
                 }
                 self.next()?;
             }
-            TokenType::Iden(_) => {
+            TokenType::Iden(id) => {
                 self.next()?;
                 match self.current.token_type {
                     TokenType::Assign => {
@@ -482,7 +498,7 @@ impl<R: Read> Parser<R> {
     }
 
     /// Parses the comma separated list.
-    pub(super) fn comma_list(&mut self) -> io::Result<()> {
+    fn comma_list(&mut self) -> io::Result<()> {
         if self.current.token_type == TokenType::RPar
             || self.current.token_type == TokenType::RBracket
             || self.current.token_type == TokenType::RBrace
