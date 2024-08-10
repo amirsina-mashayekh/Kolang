@@ -133,7 +133,7 @@ impl<R: Read> Lexer<R> {
                     TokenType::NEq
                 } else {
                     consumed = true;
-                    TokenType::Invalid
+                    TokenType::Invalid("!".into())
                 }
             }
             '=' => {
@@ -168,7 +168,7 @@ impl<R: Read> Lexer<R> {
                 let c = self.match_char()?;
                 match c.as_bytes().last() {
                     Some(b'\'') => TokenType::LiteralChar(c),
-                    _ => TokenType::Invalid,
+                    _ => TokenType::Invalid(c),
                 }
             }
             '"' => {
@@ -176,7 +176,7 @@ impl<R: Read> Lexer<R> {
                 let s = self.match_str()?;
                 match s.as_bytes().last() {
                     Some(b'"') => TokenType::LiteralStr(s),
-                    _ => TokenType::Invalid,
+                    _ => TokenType::Invalid(s),
                 }
             }
             '.' => {
@@ -270,12 +270,12 @@ impl<R: Read> Lexer<R> {
                         }
                     }
                 } else {
-                    TokenType::Invalid
+                    TokenType::Invalid(tmp)
                 }
             }
         };
 
-        if !consumed && tok != TokenType::Invalid {
+        if !consumed && !matches!(tok, TokenType::Invalid(_)) {
             self.next_char()?;
         }
 

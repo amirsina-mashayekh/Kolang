@@ -148,7 +148,7 @@ pub enum TokenType {
     /// `str` keyword (string type)            
     KwStr,
     /// Invalid (unmatched) token
-    Invalid,
+    Invalid(String),
     /// End of file
     EOF,
 }
@@ -208,7 +208,7 @@ impl std::fmt::Display for TokenType {
             TokenType::KwBool => f.write_str("bool"),
             TokenType::KwFloat => f.write_str("float"),
             TokenType::KwStr => f.write_str("str"),
-            TokenType::Invalid => f.write_str("invalid"),
+            TokenType::Invalid(t) => write!(f, "{t}"),
             TokenType::EOF => f.write_str("EOF"),
         }
     }
