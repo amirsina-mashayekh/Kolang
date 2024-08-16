@@ -47,6 +47,12 @@ impl<R: Read> Parser<R> {
         }
         self.next()?;
 
+        if self.current.token_type == TokenType::Colon {
+            // fn iden ( expr ) : type
+            self.next()?;
+            self.types()?;
+        }
+
         self.stmt()?;
 
         Ok(())
@@ -259,6 +265,13 @@ impl<R: Read> Parser<R> {
         }
         self.next()?;
 
+        self.types()?;
+
+        Ok(())
+    }
+
+    /// Parses the types.
+    fn types(&mut self) -> io::Result<()> {
         match self.current.token_type {
             TokenType::KwInt => {
                 // handle int
