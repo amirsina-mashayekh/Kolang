@@ -21,12 +21,20 @@ impl<R: Read> Parser<R> {
         Ok(())
     }
 
-    /// Parses the function.
-    fn func(&mut self) -> io::Result<()> {
-        if self.current.token_type != TokenType::KwFn {
-            self.syntax_error("Expected `fn`".into());
+    /// Expects a token. Consumes the token if matches,
+    /// otherwise raises syntax error.
+    fn expect(&mut self, expected: TokenType) -> io::Result<()> {
+        if self.current.token_type != expected {
+            self.syntax_error(format!("Expected `{}`", expected));
         }
         self.next()?;
+
+        Ok(())
+    }
+
+    /// Parses the function.
+    fn func(&mut self) -> io::Result<()> {
+        self.expect(TokenType::KwFn)?;
 
         if let TokenType::Iden(id) = &self.current.token_type {
             // Handle id
@@ -35,17 +43,11 @@ impl<R: Read> Parser<R> {
         }
         self.next()?;
 
-        if self.current.token_type != TokenType::LPar {
-            self.syntax_error("Expected `(`".into());
-        }
-        self.next()?;
+        self.expect(TokenType::LPar)?;
 
         self.param_list()?;
 
-        if self.current.token_type != TokenType::RPar {
-            self.syntax_error("Expected `)`".into());
-        }
-        self.next()?;
+        self.expect(TokenType::RPar)?;
 
         if self.current.token_type == TokenType::Colon {
             // fn iden ( expr ) : type
@@ -106,10 +108,7 @@ impl<R: Read> Parser<R> {
 
     /// Parses the let statement.
     fn let_stmt(&mut self) -> io::Result<()> {
-        if self.current.token_type != TokenType::KwLet {
-            self.syntax_error("Expected `let`".into());
-        }
-        self.next()?;
+        self.expect(TokenType::KwLet)?;
 
         self.typed_ident()?;
 
@@ -118,10 +117,7 @@ impl<R: Read> Parser<R> {
             self.expr()?;
         }
 
-        if self.current.token_type != TokenType::Semicolon {
-            self.syntax_error("Expected `;`".into());
-        }
-        self.next()?;
+        self.expect(TokenType::Semicolon)?;
 
         Ok(())
     }
@@ -130,20 +126,14 @@ impl<R: Read> Parser<R> {
     fn expr_stmt(&mut self) -> io::Result<()> {
         self.expr()?;
 
-        if self.current.token_type != TokenType::Semicolon {
-            self.syntax_error("Expected `;`".into());
-        }
-        self.next()?;
+        self.expect(TokenType::Semicolon)?;
 
         Ok(())
     }
 
     /// Parses the if statement.
     fn if_stmt(&mut self) -> io::Result<()> {
-        if self.current.token_type != TokenType::KwIf {
-            self.syntax_error("Expected `if`".into());
-        }
-        self.next()?;
+        self.expect(TokenType::KwIf)?;
 
         self.expr()?;
 
@@ -159,10 +149,7 @@ impl<R: Read> Parser<R> {
 
     /// Parses the while statement.
     fn while_stmt(&mut self) -> io::Result<()> {
-        if self.current.token_type != TokenType::KwWhile {
-            self.syntax_error("Expected `while`".into());
-        }
-        self.next()?;
+        self.expect(TokenType::KwWhile)?;
 
         self.expr()?;
 
@@ -173,10 +160,7 @@ impl<R: Read> Parser<R> {
 
     /// Parses the for statement.
     fn for_stmt(&mut self) -> io::Result<()> {
-        if self.current.token_type != TokenType::KwFor {
-            self.syntax_error("Expected `for`".into());
-        }
-        self.next()?;
+        self.expect(TokenType::KwFor)?;
 
         if let TokenType::Iden(id) = &self.current.token_type {
             // Handle id
@@ -185,17 +169,11 @@ impl<R: Read> Parser<R> {
         }
         self.next()?;
 
-        if self.current.token_type != TokenType::Assign {
-            self.syntax_error("Expected `=`".into());
-        }
-        self.next()?;
+        self.expect(TokenType::Assign)?;
 
         self.expr()?;
 
-        if self.current.token_type != TokenType::KwTo {
-            self.syntax_error("Expected `to`".into());
-        }
-        self.next()?;
+        self.expect(TokenType::KwTo)?;
 
         self.expr()?;
 
@@ -206,34 +184,22 @@ impl<R: Read> Parser<R> {
 
     /// Parses the return statement.
     fn return_stmt(&mut self) -> io::Result<()> {
-        if self.current.token_type != TokenType::KwReturn {
-            self.syntax_error("Expected `return`".into());
-        }
-        self.next()?;
+        self.expect(TokenType::KwReturn)?;
 
         self.expr()?;
 
-        if self.current.token_type != TokenType::Semicolon {
-            self.syntax_error("Expected `;`".into());
-        }
-        self.next()?;
+        self.expect(TokenType::Semicolon)?;
 
         Ok(())
     }
 
     /// Parses the block statement.
     fn block_stmt(&mut self) -> io::Result<()> {
-        if self.current.token_type != TokenType::LBrace {
-            self.syntax_error("Expected `{`".into());
-        }
-        self.next()?;
+        self.expect(TokenType::LBrace)?;
 
         self.multi_stmt()?;
 
-        if self.current.token_type != TokenType::RBrace {
-            self.syntax_error("Expected `}`".into());
-        }
-        self.next()?;
+        self.expect(TokenType::RBrace)?;
 
         Ok(())
     }
@@ -260,10 +226,7 @@ impl<R: Read> Parser<R> {
         }
         self.next()?;
 
-        if self.current.token_type != TokenType::Colon {
-            self.syntax_error("Expected `:`".into());
-        }
-        self.next()?;
+        self.expect(TokenType::Colon)?;
 
         self.types()?;
 
@@ -286,10 +249,7 @@ impl<R: Read> Parser<R> {
                 // handle float
             }
             _ => {
-                self.syntax_error(format!(
-                    "Unexpected token `{}`. Expected type",
-                    self.current
-                ));
+                self.syntax_error("Expected type".into());
             }
         }
         self.next()?;
@@ -458,18 +418,12 @@ impl<R: Read> Parser<R> {
                 // array_lit
                 self.next()?;
                 self.comma_list()?;
-                if self.current.token_type != TokenType::RBracket {
-                    self.syntax_error("Expected `]`".into());
-                }
-                self.next()?;
+                self.expect(TokenType::RBracket)?;
             }
             TokenType::LPar => {
                 self.next()?;
                 self.expr()?;
-                if self.current.token_type != TokenType::RPar {
-                    self.syntax_error("Expected `)`".into());
-                }
-                self.next()?;
+                self.expect(TokenType::RPar)?;
             }
             TokenType::Iden(id) => {
                 self.next()?;
@@ -483,23 +437,17 @@ impl<R: Read> Parser<R> {
                         // iden ( comma_list )
                         self.next()?;
                         self.comma_list()?;
-                        if self.current.token_type != TokenType::RPar {
-                            self.syntax_error("Expected `)`".into());
-                        }
-                        self.next()?;
+                        self.expect(TokenType::RPar)?;
                     }
                     TokenType::LBracket => {
                         // iden [ expr ]
                         self.next()?;
                         self.expr()?;
-                        if self.current.token_type != TokenType::RBracket {
-                            self.syntax_error("Expected `]`".into());
-                        }
-                        self.next()?;
+                        self.expect(TokenType::RBracket)?;
                     }
                     _ => {
                         // iden
-                    },
+                    }
                 }
             }
             _ => {
