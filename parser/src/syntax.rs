@@ -24,10 +24,11 @@ impl<R: Read> Parser<R> {
     /// Expects a token. Consumes the token if matches,
     /// otherwise raises syntax error.
     fn expect(&mut self, expected: TokenType) -> io::Result<()> {
-        if self.current.token_type != expected {
+        if self.current.token_type == expected {
+            self.next()?;
+        } else {
             self.syntax_error(format!("Expected `{}`", expected));
         }
-        self.next()?;
 
         Ok(())
     }
