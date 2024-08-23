@@ -10,6 +10,7 @@ pub enum Expr {
     Call(String, Vec<Expr>),
     ArrayExpr(String, Box<Expr>),
     Assign(String, Box<Expr>),
+    Error,
 }
 
 pub enum BinOp {

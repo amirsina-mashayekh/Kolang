@@ -3,6 +3,7 @@ use std::io::{self, Read};
 use lexer::token::TokenType;
 
 use super::Parser;
+use crate::ast;
 
 impl<R: Read> Parser<R> {
     /// Parses the program.
@@ -259,195 +260,346 @@ impl<R: Read> Parser<R> {
     }
 
     /// Parses the expression.
-    fn expr(&mut self) -> io::Result<()> {
+    fn expr(&mut self) -> io::Result<ast::Expr> {
         self.log_or_expr()
     }
 
     /// Parses the logical or expression.
-    fn log_or_expr(&mut self) -> io::Result<()> {
-        self.log_and_expr()?;
+    fn log_or_expr(&mut self) -> io::Result<ast::Expr> {
+        let mut l = self.log_and_expr()?;
 
         while self.current.token_type == TokenType::KwOr {
             self.next()?;
-            self.log_and_expr()?;
+            let r = self.log_and_expr()?;
+            l = ast::Expr::BinaryOp(Box::new(l), ast::BinOp::LogOr, Box::new(r));
         }
 
-        Ok(())
+        Ok(l)
     }
 
     /// Parses the logical and expression.
-    fn log_and_expr(&mut self) -> io::Result<()> {
-        self.eq_neq_expr()?;
+    fn log_and_expr(&mut self) -> io::Result<ast::Expr> {
+        let mut l = self.eq_neq_expr()?;
 
         while self.current.token_type == TokenType::KwAnd {
             self.next()?;
-            self.eq_neq_expr()?;
+            let r = self.eq_neq_expr()?;
+            l = ast::Expr::BinaryOp(Box::new(l), ast::BinOp::LogAnd, Box::new(r));
         }
 
-        Ok(())
+        Ok(l)
     }
 
     /// Parses the equality and inequality expression.
-    fn eq_neq_expr(&mut self) -> io::Result<()> {
-        self.comp_expr()?;
+    fn eq_neq_expr(&mut self) -> io::Result<ast::Expr> {
+        let mut l = self.comp_expr()?;
 
-        while self.current.token_type == TokenType::Eq || self.current.token_type == TokenType::NEq
-        {
-            self.next()?;
-            self.comp_expr()?;
+        loop {
+            match self.current.token_type {
+                TokenType::Eq => {
+                    self.next()?;
+                    let r = self.comp_expr()?;
+                    l = ast::Expr::BinaryOp(Box::new(l), ast::BinOp::Eq, Box::new(r));
+                }
+                TokenType::NEq => {
+                    self.next()?;
+                    let r = self.comp_expr()?;
+                    l = ast::Expr::BinaryOp(Box::new(l), ast::BinOp::NEq, Box::new(r));
+                }
+                _ => break,
+            }
         }
 
-        Ok(())
+        Ok(l)
     }
 
     /// Parses the comparison expression.
-    fn comp_expr(&mut self) -> io::Result<()> {
-        self.bit_or_expr()?;
+    fn comp_expr(&mut self) -> io::Result<ast::Expr> {
+        let mut l = self.bit_or()?;
 
-        while self.current.token_type == TokenType::LT
-            || self.current.token_type == TokenType::GT
-            || self.current.token_type == TokenType::LEq
-            || self.current.token_type == TokenType::GEq
-        {
-            self.next()?;
-            self.bit_or_expr()?;
+        loop {
+            match self.current.token_type {
+                TokenType::LT => {
+                    self.next()?;
+                    let r = self.bit_or()?;
+                    l = ast::Expr::BinaryOp(Box::new(l), ast::BinOp::LT, Box::new(r));
+                }
+                TokenType::GT => {
+                    self.next()?;
+                    let r = self.bit_or()?;
+                    l = ast::Expr::BinaryOp(Box::new(l), ast::BinOp::GT, Box::new(r));
+                }
+                TokenType::LEq => {
+                    self.next()?;
+                    let r = self.bit_or()?;
+                    l = ast::Expr::BinaryOp(Box::new(l), ast::BinOp::LEq, Box::new(r));
+                }
+                TokenType::GEq => {
+                    self.next()?;
+                    let r = self.bit_or()?;
+                    l = ast::Expr::BinaryOp(Box::new(l), ast::BinOp::GEq, Box::new(r));
+                }
+                _ => break,
+            }
         }
 
-        Ok(())
+        Ok(l)
     }
 
     /// Parses the bitwise or expression.
-    fn bit_or_expr(&mut self) -> io::Result<()> {
-        self.bit_and_expr()?;
+    fn bit_or(&mut self) -> io::Result<ast::Expr> {
+        let mut l = self.bit_and_expr()?;
 
         while self.current.token_type == TokenType::Pipe {
             self.next()?;
-            self.bit_and_expr()?;
+            let r = self.bit_and_expr()?;
+            l = ast::Expr::BinaryOp(Box::new(l), ast::BinOp::BitOr, Box::new(r));
         }
 
-        Ok(())
+        Ok(l)
     }
 
     /// Parses the bitwise and expression.
-    fn bit_and_expr(&mut self) -> io::Result<()> {
-        self.add_sub_expr()?;
+    fn bit_and_expr(&mut self) -> io::Result<ast::Expr> {
+        let mut l = self.add_sub_expr()?;
 
         while self.current.token_type == TokenType::Amp {
             self.next()?;
-            self.add_sub_expr()?;
+            let r = self.add_sub_expr()?;
+            l = ast::Expr::BinaryOp(Box::new(l), ast::BinOp::BitAnd, Box::new(r));
         }
 
-        Ok(())
+        Ok(l)
     }
 
     /// Parses the addition and subtraction expression.
-    fn add_sub_expr(&mut self) -> io::Result<()> {
-        self.mul_div_mod_expr()?;
+    fn add_sub_expr(&mut self) -> io::Result<ast::Expr> {
+        let mut l = self.mul_div_mod_expr()?;
 
-        while self.current.token_type == TokenType::Plus
-            || self.current.token_type == TokenType::Minus
-        {
-            self.next()?;
-            self.mul_div_mod_expr()?;
+        loop {
+            match self.current.token_type {
+                TokenType::Plus => {
+                    self.next()?;
+                    let r = self.mul_div_mod_expr()?;
+                    l = ast::Expr::BinaryOp(Box::new(l), ast::BinOp::Add, Box::new(r));
+                }
+                TokenType::Minus => {
+                    self.next()?;
+                    let r = self.mul_div_mod_expr()?;
+                    l = ast::Expr::BinaryOp(Box::new(l), ast::BinOp::Sub, Box::new(r));
+                }
+                _ => break,
+            }
         }
 
-        Ok(())
+        Ok(l)
     }
 
     /// Parses the multiplication, division and modulo expression.
-    fn mul_div_mod_expr(&mut self) -> io::Result<()> {
-        self.unary_expr()?;
+    fn mul_div_mod_expr(&mut self) -> io::Result<ast::Expr> {
+        let mut l = self.unary_expr()?;
 
-        while self.current.token_type == TokenType::Asterisk
-            || self.current.token_type == TokenType::Slash
-            || self.current.token_type == TokenType::Percent
-        {
-            self.next()?;
-            self.unary_expr()?;
+        loop {
+            match self.current.token_type {
+                TokenType::Asterisk => {
+                    self.next()?;
+                    let r = self.unary_expr()?;
+                    l = ast::Expr::BinaryOp(Box::new(l), ast::BinOp::Mul, Box::new(r));
+                }
+                TokenType::Slash => {
+                    self.next()?;
+                    let r = self.unary_expr()?;
+                    l = ast::Expr::BinaryOp(Box::new(l), ast::BinOp::Div, Box::new(r));
+                }
+                TokenType::Percent => {
+                    self.next()?;
+                    let r = self.unary_expr()?;
+                    l = ast::Expr::BinaryOp(Box::new(l), ast::BinOp::Mod, Box::new(r));
+                }
+                _ => break,
+            }
         }
 
-        Ok(())
+        Ok(l)
     }
 
     /// Parses unary expressions.
-    fn unary_expr(&mut self) -> io::Result<()> {
-        match self.current.token_type {
-            TokenType::Plus | TokenType::Minus | TokenType::KwNot | TokenType::Tilde => {
+    fn unary_expr(&mut self) -> io::Result<ast::Expr> {
+        let expr = match self.current.token_type {
+            TokenType::Plus => {
                 self.next()?;
-                self.expr()?;
+                self.expr()?
+            }
+            TokenType::Minus => {
+                self.next()?;
+                let e = self.expr()?;
+                ast::Expr::UnaryOp(ast::UnOp::Neg, Box::new(e))
+            }
+            TokenType::KwNot => {
+                self.next()?;
+                let e = self.expr()?;
+                ast::Expr::UnaryOp(ast::UnOp::LogNot, Box::new(e))
+            }
+            TokenType::Tilde => {
+                self.next()?;
+                let e = self.expr()?;
+                ast::Expr::UnaryOp(ast::UnOp::BitNot, Box::new(e))
             }
             _ => {
-                self.primary_expr()?;
+                self.primary_expr()?
             }
-        }
+        };
 
-        Ok(())
+        Ok(expr)
     }
 
     /// Parses the primary expressions.
-    fn primary_expr(&mut self) -> io::Result<()> {
+    fn primary_expr(&mut self) -> io::Result<ast::Expr> {
+        let mut expr: ast::Expr = ast::Expr::Error;
+
         match &self.current.token_type {
             TokenType::LiteralIntDec(n) => {
-                // handle decimal int
+                match i64::from_str_radix(&n, 10) {
+                    Ok(n) => {
+                        expr = ast::Expr::LiteralInt(n);
+                    }
+                    Err(e) => {
+                        self.syntax_error(format!("Invalid integer, {}", e.to_string()));
+                    }
+                }
+
                 self.next()?;
             }
             TokenType::LiteralStr(s) => {
-                // handle string
+                let raw = s.trim_matches('"').to_string();
+                let unescaped = raw
+                    .replace("\\n", "\n")
+                    .replace("\\\"", "\"")
+                    .replace("\\t", "\t")
+                    .replace("\\\\", "\\")
+                    .replace("\\r", "\r")
+                    .replace("\\'", "'")
+                    .replace("\\0", "\0");
+                expr = ast::Expr::LiteralStr(unescaped);
+
                 self.next()?;
             }
             TokenType::LiteralChar(c) => {
-                // handle char
+                let trimmed = c.trim_matches('\'');
+
+                let parsed_char = match trimmed.len() {
+                    1 => trimmed.chars().next(),
+                    _ => match trimmed {
+                        "\\n" => Some('\n'),
+                        "\\'" => Some('\''),
+                        "\\\"" => Some('"'),
+                        "\\t" => Some('\t'),
+                        "\\\\" => Some('\\'),
+                        "\\r" => Some('\r'),
+                        "\\0" => Some('\0'),
+                        _ => None,
+                    },
+                };
+
+                match parsed_char {
+                    Some(ch) => expr = ast::Expr::LiteralChar(ch),
+                    None => self.syntax_error("Invalid character".into()),
+                }
+
                 self.next()?;
             }
             TokenType::LiteralFloat(f) => {
-                // handle float
+                match f.parse::<f64>() {
+                    Ok(f) => {
+                        expr = ast::Expr::LiteralFloat(f);
+                    }
+                    Err(e) => {
+                        self.syntax_error(format!("Invalid integer, {}", e.to_string()));
+                    }
+                }
+
                 self.next()?;
             }
             TokenType::LiteralIntHex(n) => {
-                // handle hex int
+                let trimmed = &n[2..];
+
+                match i64::from_str_radix(trimmed, 16) {
+                    Ok(n) => {
+                        expr = ast::Expr::LiteralInt(n);
+                    }
+                    Err(e) => {
+                        self.syntax_error(format!("Invalid integer, {}", e.to_string()));
+                    }
+                }
+
                 self.next()?;
             }
             TokenType::LiteralIntBin(n) => {
-                // handle binary int
+                let trimmed = &n[2..];
+
+                match i64::from_str_radix(trimmed, 2) {
+                    Ok(n) => {
+                        expr = ast::Expr::LiteralInt(n);
+                    }
+                    Err(e) => {
+                        self.syntax_error(format!("Invalid integer, {}", e.to_string()));
+                    }
+                }
                 self.next()?;
             }
             TokenType::LiteralIntOct(n) => {
-                // handle octal int
+                let trimmed = &n[2..];
+
+                match i64::from_str_radix(trimmed, 8) {
+                    Ok(n) => {
+                        expr = ast::Expr::LiteralInt(n);
+                    }
+                    Err(e) => {
+                        self.syntax_error(format!("Invalid integer, {}", e.to_string()));
+                    }
+                }
                 self.next()?;
             }
             TokenType::LBracket => {
                 // array_lit
                 self.next()?;
-                self.comma_list()?;
+                let clist = self.comma_list()?;
+                expr = ast::Expr::LiteralArray(clist);
                 self.expect(TokenType::RBracket)?;
             }
             TokenType::LPar => {
                 self.next()?;
-                self.expr()?;
+                expr = self.expr()?;
                 self.expect(TokenType::RPar)?;
             }
             TokenType::Iden(id) => {
+                let id = id.to_string();
                 self.next()?;
+
                 match self.current.token_type {
                     TokenType::Assign => {
                         // iden = expr
                         self.next()?;
-                        self.expr()?;
+                        let e = self.expr()?;
+                        expr = ast::Expr::Assign(id, Box::new(e));
                     }
                     TokenType::LPar => {
                         // iden ( comma_list )
                         self.next()?;
-                        self.comma_list()?;
+                        let clist = self.comma_list()?;
+                        expr = ast::Expr::Call(id, clist);
                         self.expect(TokenType::RPar)?;
                     }
                     TokenType::LBracket => {
                         // iden [ expr ]
                         self.next()?;
-                        self.expr()?;
+                        let e = self.expr()?;
                         self.expect(TokenType::RBracket)?;
+                        expr = ast::Expr::ArrayExpr(id, Box::new(e));
                     }
                     _ => {
                         // iden
+                        expr = ast::Expr::Identifier(id);
                     }
                 }
             }
@@ -456,25 +608,29 @@ impl<R: Read> Parser<R> {
             }
         }
 
-        Ok(())
+        Ok(expr)
     }
 
     /// Parses the comma separated list.
-    fn comma_list(&mut self) -> io::Result<()> {
+    fn comma_list(&mut self) -> io::Result<Vec<ast::Expr>> {
+        let mut lst: Vec<ast::Expr> = Vec::new();
+
         if self.current.token_type == TokenType::RPar
             || self.current.token_type == TokenType::RBracket
             || self.current.token_type == TokenType::RBrace
         {
-            return Ok(());
+            return Ok(lst);
         }
 
-        self.expr()?;
+        let expr = self.expr()?;
+        lst.push(expr);
 
         if self.current.token_type == TokenType::Comma {
             self.next()?;
-            self.comma_list()?;
+            let mut cdr = self.comma_list()?;
+            lst.append(&mut cdr);
         }
 
-        Ok(())
+        Ok(lst)
     }
 }
