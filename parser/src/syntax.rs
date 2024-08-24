@@ -7,11 +7,15 @@ use crate::ast;
 
 impl<R: Read> Parser<R> {
     /// Parses the program.
-    pub(super) fn prog(&mut self) -> io::Result<()> {
+    pub(super) fn prog(&mut self) -> io::Result<Vec<ast::Stmt>> {
+        let mut p: Vec<ast::Stmt> = Vec::new();
+
         match self.current.token_type {
             TokenType::KwFn => {
-                self.func()?;
-                self.prog()?;
+                let f = self.func()?;
+                p.push(f);
+                let mut crd = self.prog()?;
+                p.append(&mut crd);
             }
             TokenType::EOF => {}
             _ => {
@@ -19,7 +23,7 @@ impl<R: Read> Parser<R> {
             }
         };
 
-        Ok(())
+        Ok(p)
     }
 
     /// Expects a token. Consumes the token if matches,
@@ -35,228 +39,236 @@ impl<R: Read> Parser<R> {
     }
 
     /// Parses the function.
-    fn func(&mut self) -> io::Result<()> {
+    fn func(&mut self) -> io::Result<ast::Stmt> {
         self.expect(TokenType::KwFn)?;
 
-        if let TokenType::Iden(id) = &self.current.token_type {
-            // Handle id
-        } else {
-            self.syntax_error("Expected identifier".into());
-        }
+        let id = match &self.current.token_type {
+            TokenType::Iden(id) => id.to_string(),
+            _ => {
+                self.syntax_error("Expected identifier".into());
+                "".to_string()
+            }
+        };
         self.next()?;
 
         self.expect(TokenType::LPar)?;
 
-        self.param_list()?;
+        let params = self.param_list()?;
 
         self.expect(TokenType::RPar)?;
 
-        if self.current.token_type == TokenType::Colon {
-            // fn iden ( expr ) : type
-            self.next()?;
-            self.types()?;
-        }
+        let t = match &self.current.token_type {
+            TokenType::Colon => {
+                self.next()?;
+                Some(self.types()?)
+            }
+            _ => None,
+        };
 
-        self.stmt()?;
+        let s = self.stmt()?;
 
-        Ok(())
+        Ok(ast::Stmt::FnDef(id, params, t, Box::new(s)))
     }
 
     /// Parses the function parameters list.
-    fn param_list(&mut self) -> io::Result<()> {
+    fn param_list(&mut self) -> io::Result<Vec<(String, ast::Type)>> {
+        let mut params: Vec<(String, ast::Type)> = Vec::new();
+
         if self.current.token_type == TokenType::RPar {
             // empty param list
-            return Ok(());
+            return Ok(params);
         }
 
-        self.typed_ident()?;
+        let idt = self.typed_ident()?;
+        params.push(idt);
 
         if self.current.token_type == TokenType::Comma {
             self.next()?;
-            self.param_list()?;
+            let mut cdr = self.param_list()?;
+            params.append(&mut cdr);
         }
 
-        Ok(())
+        Ok(params)
     }
 
     /// Parses the statement.
-    fn stmt(&mut self) -> io::Result<()> {
-        match self.current.token_type {
-            TokenType::KwLet => {
-                self.let_stmt()?;
-            }
-            TokenType::KwIf => {
-                self.if_stmt()?;
-            }
-            TokenType::KwWhile => {
-                self.while_stmt()?;
-            }
-            TokenType::KwFor => {
-                self.for_stmt()?;
-            }
-            TokenType::KwReturn => {
-                self.return_stmt()?;
-            }
-            TokenType::LBrace => {
-                self.block_stmt()?;
-            }
-            _ => {
-                self.expr_stmt()?;
-            }
-        }
+    fn stmt(&mut self) -> io::Result<ast::Stmt> {
+        let s = match self.current.token_type {
+            TokenType::KwLet => self.let_stmt()?,
+            TokenType::KwIf => self.if_stmt()?,
+            TokenType::KwWhile => self.while_stmt()?,
+            TokenType::KwFor => self.for_stmt()?,
+            TokenType::KwReturn => self.return_stmt()?,
+            TokenType::LBrace => self.block_stmt()?,
+            _ => self.expr_stmt()?
+        };
 
-        Ok(())
+        Ok(s)
     }
 
     /// Parses the let statement.
-    fn let_stmt(&mut self) -> io::Result<()> {
+    fn let_stmt(&mut self) -> io::Result<ast::Stmt> {
         self.expect(TokenType::KwLet)?;
 
-        self.typed_ident()?;
+        let (id, t) = self.typed_ident()?;
 
-        if self.current.token_type == TokenType::Assign {
-            self.next()?;
-            self.expr()?;
-        }
+        let e = match &self.current.token_type {
+            TokenType::Assign => {
+                self.next()?;
+                Some(self.expr()?)
+            }
+            _ => None
+        };
 
         self.expect(TokenType::Semicolon)?;
 
-        Ok(())
+        Ok(ast::Stmt::Let(id, t, e))
     }
 
     /// Parses the expression statement.
-    fn expr_stmt(&mut self) -> io::Result<()> {
-        self.expr()?;
+    fn expr_stmt(&mut self) -> io::Result<ast::Stmt> {
+        let e = self.expr()?;
 
         self.expect(TokenType::Semicolon)?;
 
-        Ok(())
+        Ok(ast::Stmt::Expr(e))
     }
 
     /// Parses the if statement.
-    fn if_stmt(&mut self) -> io::Result<()> {
+    fn if_stmt(&mut self) -> io::Result<ast::Stmt> {
         self.expect(TokenType::KwIf)?;
 
-        self.expr()?;
+        let cond = self.expr()?;
 
-        self.stmt()?;
+        let s = self.stmt()?;
 
-        if self.current.token_type == TokenType::KwElse {
-            self.next()?;
-            self.stmt()?;
-        }
+        let else_stmt = match self.current.token_type {
+            TokenType::KwElse => {
+                self.next()?;
+                Some(Box::new(self.stmt()?))
+            }
+            _ => None,
+        };
 
-        Ok(())
+        Ok(ast::Stmt::If(cond, Box::new(s), else_stmt))
     }
 
     /// Parses the while statement.
-    fn while_stmt(&mut self) -> io::Result<()> {
+    fn while_stmt(&mut self) -> io::Result<ast::Stmt> {
         self.expect(TokenType::KwWhile)?;
 
-        self.expr()?;
+        let cond = self.expr()?;
 
-        self.stmt()?;
+        let s = self.stmt()?;
 
-        Ok(())
+        Ok(ast::Stmt::While(cond, Box::new(s)))
     }
 
     /// Parses the for statement.
-    fn for_stmt(&mut self) -> io::Result<()> {
+    fn for_stmt(&mut self) -> io::Result<ast::Stmt> {
         self.expect(TokenType::KwFor)?;
 
-        if let TokenType::Iden(id) = &self.current.token_type {
-            // Handle id
-        } else {
-            self.syntax_error("Expected identifier".into());
-        }
+        let id = match &self.current.token_type {
+            TokenType::Iden(id) => id.to_string(),
+            _ => {
+                self.syntax_error("Expected identifier".into());
+                "".to_string()
+            }
+        };
         self.next()?;
 
         self.expect(TokenType::Assign)?;
 
-        self.expr()?;
+        let from = self.expr()?;
 
         self.expect(TokenType::KwTo)?;
 
-        self.expr()?;
+        let to = self.expr()?;
 
-        self.stmt()?;
+        let s = self.stmt()?;
 
-        Ok(())
+        Ok(ast::Stmt::For(id, from, to, Box::new(s)))
     }
 
     /// Parses the return statement.
-    fn return_stmt(&mut self) -> io::Result<()> {
+    fn return_stmt(&mut self) -> io::Result<ast::Stmt> {
         self.expect(TokenType::KwReturn)?;
 
-        self.expr()?;
+        let e = self.expr()?;
 
         self.expect(TokenType::Semicolon)?;
 
-        Ok(())
+        Ok(ast::Stmt::Return(e))
     }
 
     /// Parses the block statement.
-    fn block_stmt(&mut self) -> io::Result<()> {
+    fn block_stmt(&mut self) -> io::Result<ast::Stmt> {
         self.expect(TokenType::LBrace)?;
 
-        self.multi_stmt()?;
+        let s = self.multi_stmt()?;
 
         self.expect(TokenType::RBrace)?;
 
-        Ok(())
+        Ok(ast::Stmt::Block(s))
     }
 
     /// Parses consecutive statements.
-    fn multi_stmt(&mut self) -> io::Result<()> {
+    fn multi_stmt(&mut self) -> io::Result<Vec<ast::Stmt>> {
+        let mut stmts: Vec<ast::Stmt> = Vec::new();
+
         if self.current.token_type == TokenType::RBrace {
-            return Ok(());
+            return Ok(stmts);
         }
 
-        self.stmt()?;
+        let s = self.stmt()?;
+        stmts.push(s);
 
-        self.multi_stmt()?;
+        let mut cdr = self.multi_stmt()?;
+        stmts.append(&mut cdr);
 
-        Ok(())
+        Ok(stmts)
     }
 
     /// Parses the typed identifier.
-    fn typed_ident(&mut self) -> io::Result<()> {
-        if let TokenType::Iden(id) = &self.current.token_type {
-            // Handle id
-        } else {
-            self.syntax_error("Expected identifier".into());
-        }
+    fn typed_ident(&mut self) -> io::Result<(String, ast::Type)> {
+        let id = match &self.current.token_type {
+            TokenType::Iden(id) => id.to_string(),
+            _ => {
+                self.syntax_error("Expected identifier".into());
+                "".to_string()
+            }
+        };
         self.next()?;
 
         self.expect(TokenType::Colon)?;
 
-        self.types()?;
+        let t = self.types()?;
 
-        Ok(())
+        Ok((id, t))
     }
 
     /// Parses the types.
-    fn types(&mut self) -> io::Result<()> {
-        match self.current.token_type {
-            TokenType::KwInt => {
-                // handle int
-            }
-            TokenType::KwStr => {
-                // handle string
-            }
-            TokenType::KwChar => {
-                // handle char
-            }
-            TokenType::KwFloat => {
-                // handle float
-            }
+    fn types(&mut self) -> io::Result<ast::Type> {
+        let mut t = match self.current.token_type {
+            TokenType::KwInt => ast::Type::Int,
+            TokenType::KwFloat => ast::Type::Float,
+            TokenType::KwChar => ast::Type::Char,
+            TokenType::KwStr => ast::Type::Str,
+            TokenType::KwBool => ast::Type::Bool,
             _ => {
                 self.syntax_error("Expected type".into());
+                ast::Type::Error
             }
-        }
+        };
         self.next()?;
 
-        Ok(())
+        if self.current.token_type == TokenType::LBracket {
+            self.next()?;
+            t = ast::Type::Array(Box::new(t));
+            self.expect(TokenType::RBracket)?;
+        }
+
+        Ok(t)
     }
 
     /// Parses the expression.
@@ -455,21 +467,7 @@ impl<R: Read> Parser<R> {
 
     /// Parses the primary expressions.
     fn primary_expr(&mut self) -> io::Result<ast::Expr> {
-        let mut expr: ast::Expr = ast::Expr::Error;
-
-        match &self.current.token_type {
-            TokenType::LiteralIntDec(n) => {
-                match i64::from_str_radix(&n, 10) {
-                    Ok(n) => {
-                        expr = ast::Expr::LiteralInt(n);
-                    }
-                    Err(e) => {
-                        self.syntax_error(format!("Invalid integer, {}", e.to_string()));
-                    }
-                }
-
-                self.next()?;
-            }
+        let expr = match &self.current.token_type {
             TokenType::LiteralStr(s) => {
                 let raw = s.trim_matches('"').to_string();
                 let unescaped = raw
@@ -480,9 +478,10 @@ impl<R: Read> Parser<R> {
                     .replace("\\r", "\r")
                     .replace("\\'", "'")
                     .replace("\\0", "\0");
-                expr = ast::Expr::LiteralStr(unescaped);
 
                 self.next()?;
+
+                ast::Expr::LiteralStr(unescaped)
             }
             TokenType::LiteralChar(c) => {
                 let trimmed = c.trim_matches('\'');
@@ -501,76 +500,108 @@ impl<R: Read> Parser<R> {
                     },
                 };
 
-                match parsed_char {
-                    Some(ch) => expr = ast::Expr::LiteralChar(ch),
-                    None => self.syntax_error("Invalid character".into()),
-                }
-
                 self.next()?;
+
+                match parsed_char {
+                    Some(ch) => ast::Expr::LiteralChar(ch),
+                    None => {
+                        self.syntax_error("Invalid character".into());
+                        ast::Expr::Error
+                    }
+                }
             }
             TokenType::LiteralFloat(f) => {
-                match f.parse::<f64>() {
+                let e = match f.parse::<f64>() {
                     Ok(f) => {
-                        expr = ast::Expr::LiteralFloat(f);
+                        ast::Expr::LiteralFloat(f)
                     }
                     Err(e) => {
                         self.syntax_error(format!("Invalid integer, {}", e.to_string()));
+                        ast::Expr::Error
                     }
-                }
+                };
 
                 self.next()?;
+                
+                e
+            }
+            TokenType::LiteralIntDec(n) => {
+                let e = match i64::from_str_radix(&n, 10) {
+                    Ok(n) => {
+                        ast::Expr::LiteralInt(n)
+                    }
+                    Err(e) => {
+                        self.syntax_error(format!("Invalid integer, {}", e.to_string()));
+                        ast::Expr::Error
+                    }
+                };
+
+                self.next()?;
+                e
             }
             TokenType::LiteralIntHex(n) => {
                 let trimmed = &n[2..];
 
-                match i64::from_str_radix(trimmed, 16) {
+                let e = match i64::from_str_radix(trimmed, 16) {
                     Ok(n) => {
-                        expr = ast::Expr::LiteralInt(n);
+                        ast::Expr::LiteralInt(n)
                     }
                     Err(e) => {
                         self.syntax_error(format!("Invalid integer, {}", e.to_string()));
+                        ast::Expr::Error
                     }
-                }
+                };
 
                 self.next()?;
+
+                e
             }
             TokenType::LiteralIntBin(n) => {
                 let trimmed = &n[2..];
 
-                match i64::from_str_radix(trimmed, 2) {
+                let e = match i64::from_str_radix(trimmed, 2) {
                     Ok(n) => {
-                        expr = ast::Expr::LiteralInt(n);
+                        ast::Expr::LiteralInt(n)
                     }
                     Err(e) => {
                         self.syntax_error(format!("Invalid integer, {}", e.to_string()));
+                        ast::Expr::Error
                     }
-                }
+                };
+
                 self.next()?;
+
+                e
             }
             TokenType::LiteralIntOct(n) => {
                 let trimmed = &n[2..];
 
-                match i64::from_str_radix(trimmed, 8) {
+                let e = match i64::from_str_radix(trimmed, 8) {
                     Ok(n) => {
-                        expr = ast::Expr::LiteralInt(n);
+                        ast::Expr::LiteralInt(n)
                     }
                     Err(e) => {
                         self.syntax_error(format!("Invalid integer, {}", e.to_string()));
+                        ast::Expr::Error
                     }
-                }
+                };
+
                 self.next()?;
+
+                e
             }
             TokenType::LBracket => {
                 // array_lit
                 self.next()?;
                 let clist = self.comma_list()?;
-                expr = ast::Expr::LiteralArray(clist);
                 self.expect(TokenType::RBracket)?;
+                ast::Expr::LiteralArray(clist)
             }
             TokenType::LPar => {
                 self.next()?;
-                expr = self.expr()?;
+                let e = self.expr()?;
                 self.expect(TokenType::RPar)?;
+                e
             }
             TokenType::Iden(id) => {
                 let id = id.to_string();
@@ -581,32 +612,33 @@ impl<R: Read> Parser<R> {
                         // iden = expr
                         self.next()?;
                         let e = self.expr()?;
-                        expr = ast::Expr::Assign(id, Box::new(e));
+                        ast::Expr::Assign(id, Box::new(e))
                     }
                     TokenType::LPar => {
                         // iden ( comma_list )
                         self.next()?;
                         let clist = self.comma_list()?;
-                        expr = ast::Expr::Call(id, clist);
                         self.expect(TokenType::RPar)?;
+                        ast::Expr::Call(id, clist)
                     }
                     TokenType::LBracket => {
                         // iden [ expr ]
                         self.next()?;
                         let e = self.expr()?;
                         self.expect(TokenType::RBracket)?;
-                        expr = ast::Expr::ArrayExpr(id, Box::new(e));
+                        ast::Expr::ArrayExpr(id, Box::new(e))
                     }
                     _ => {
                         // iden
-                        expr = ast::Expr::Identifier(id);
+                        ast::Expr::Identifier(id)
                     }
                 }
             }
             _ => {
                 self.syntax_error("Expected expression".into());
+                ast::Expr::Error
             }
-        }
+        };
 
         Ok(expr)
     }

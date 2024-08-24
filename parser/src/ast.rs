@@ -38,12 +38,22 @@ pub enum UnOp {
 }
 
 pub enum Stmt {
-    Let(String, Expr),
+    Let(String, Type, Option<Expr>),
     Expr(Expr),
     If(Expr, Box<Stmt>, Option<Box<Stmt>>),
     While(Expr, Box<Stmt>),
     For(String, Expr, Expr, Box<Stmt>),
     Return(Expr),
     Block(Vec<Stmt>),
-    FnDef(String, Vec<String>, Box<Stmt>),
+    FnDef(String, Vec<(String, Type)>, Option<Type>, Box<Stmt>),
+}
+
+pub enum Type {
+    Int,
+    Float,
+    Char,
+    Str,
+    Bool,
+    Array(Box<Type>),
+    Error,
 }

@@ -54,11 +54,11 @@ impl<R: Read> Parser<R> {
     /// let mut p = Parser::new(l);
     /// p.parse();
     /// ```
-    pub fn parse(&mut self) -> io::Result<()> {
+    pub fn parse(&mut self) -> io::Result<Vec<ast::Stmt>> {
         self.next()?;
-        self.prog()?;
+        let p = self.prog()?;
 
-        Ok(())
+        Ok(p)
     }
 
     /// Advances to the next token.
