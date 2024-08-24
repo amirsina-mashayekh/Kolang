@@ -28,7 +28,11 @@ fn main() -> io::Result<()> {
     let l = Lexer::new(f);
     let mut p = Parser::new(l);
 
-    p.parse()?;
+    let ast = p.parse()?;
+
+    for stmt in ast {
+        println!("{:#?}", stmt);
+    }
 
     Ok(())
 }

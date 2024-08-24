@@ -16,7 +16,8 @@ stmt                = let_stmt
                     | while_stmt
                     | for_stmt
                     | return_stmt
-                    | block_stmt ;
+                    | block_stmt 
+                    | ";" ;
 
 let_stmt            = "let" typed_ident [ "=" expr ] ";" ;
 expr_stmt           = expr ";" ;

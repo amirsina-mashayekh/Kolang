@@ -100,6 +100,10 @@ impl<R: Read> Parser<R> {
             TokenType::KwFor => self.for_stmt()?,
             TokenType::KwReturn => self.return_stmt()?,
             TokenType::LBrace => self.block_stmt()?,
+            TokenType::Semicolon => {
+                self.next()?;
+                ast::Stmt::Empty
+            }
             _ => self.expr_stmt()?
         };
 
@@ -440,21 +444,21 @@ impl<R: Read> Parser<R> {
         let expr = match self.current.token_type {
             TokenType::Plus => {
                 self.next()?;
-                self.expr()?
+                self.primary_expr()?
             }
             TokenType::Minus => {
                 self.next()?;
-                let e = self.expr()?;
+                let e = self.primary_expr()?;
                 ast::Expr::UnaryOp(ast::UnOp::Neg, Box::new(e))
             }
             TokenType::KwNot => {
                 self.next()?;
-                let e = self.expr()?;
+                let e = self.primary_expr()?;
                 ast::Expr::UnaryOp(ast::UnOp::LogNot, Box::new(e))
             }
             TokenType::Tilde => {
                 self.next()?;
-                let e = self.expr()?;
+                let e = self.primary_expr()?;
                 ast::Expr::UnaryOp(ast::UnOp::BitNot, Box::new(e))
             }
             _ => {
