@@ -6,6 +6,7 @@ pub enum Expr {
     LiteralStr(String),
     LiteralChar(char),
     LiteralFloat(f64),
+    LiteralBool(bool),
     LiteralArray(Vec<Expr>),
     BinaryOp(Box<Expr>, BinOp, Box<Expr>),
     UnaryOp(UnOp, Box<Expr>),
@@ -66,44 +67,45 @@ pub enum Type {
     Error,
 }
 
-impl fmt::Debug for Expr {
+impl fmt::Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Expr::LiteralInt(i) => write!(f, "{}", i),
             Expr::LiteralStr(s) => write!(f, "\"{}\"", s),
             Expr::LiteralChar(c) => write!(f, "{}", c),
             Expr::LiteralFloat(fl) => write!(f, "{}", fl),
+            Expr::LiteralBool(b) => write!(f, "{}", b),
             Expr::LiteralArray(arr) => {
                 write!(f, "[")?;
                 for (i, e) in arr.iter().enumerate() {
-                    write!(f, "{:?}", e)?;
+                    write!(f, "{}", e)?;
                     if i != arr.len() - 1 {
                         write!(f, ", ")?;
                     }
                 }
                 write!(f, "]")
             }
-            Expr::BinaryOp(e1, op, e2) => write!(f, "({:?} {:?} {:?})", e1, op, e2),
-            Expr::UnaryOp(op, e) => write!(f, "({:?}{:?})", op, e),
+            Expr::BinaryOp(e1, op, e2) => write!(f, "({} {} {})", e1, op, e2),
+            Expr::UnaryOp(op, e) => write!(f, "({} {})", op, e),
             Expr::Identifier(id) => write!(f, "{}", id),
             Expr::Call(id, args) => {
                 write!(f, "{}(", id)?;
                 for (i, arg) in args.iter().enumerate() {
-                    write!(f, "{:?}", arg)?;
+                    write!(f, "{}", arg)?;
                     if i != args.len() - 1 {
                         write!(f, ", ")?;
                     }
                 }
                 write!(f, ")")
             }
-            Expr::ArrayExpr(id, idx) => write!(f, "{}[{:?}]", id, idx),
-            Expr::Assign(id, e) => write!(f, "{} = {:?}", id, e),
+            Expr::ArrayExpr(id, idx) => write!(f, "{}[{}]", id, idx),
+            Expr::Assign(id, e) => write!(f, "{} = {}", id, e),
             Expr::Error => write!(f, "err_expr"),
         }
     }
 }
 
-impl fmt::Debug for BinOp {
+impl fmt::Display for BinOp {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             BinOp::Add => write!(f, "+"),
@@ -125,7 +127,7 @@ impl fmt::Debug for BinOp {
     }
 }
 
-impl fmt::Debug for UnOp {
+impl fmt::Display for UnOp {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             UnOp::Neg => write!(f, "-"),
@@ -135,7 +137,7 @@ impl fmt::Debug for UnOp {
     }
 }
 
-const INDENT_LEN: usize = 2;
+const INDENT_LEN: usize = 4;
 
 impl Stmt {
     fn fmt_with_indent(&self, f: &mut fmt::Formatter, ind_lvl: usize, pretty: bool) -> fmt::Result {
@@ -147,15 +149,15 @@ impl Stmt {
 
         match self {
             Stmt::Let(id, t, e) => {
-                write!(f, "let {}: {:?}", id, t)?;
+                write!(f, "let {}: {}", id, t)?;
                 if let Some(expr) = e {
-                    write!(f, " = {:?}", expr)?;
+                    write!(f, " = {}", expr)?;
                 }
                 Ok(())
             }
-            Stmt::Expr(e) => write!(f, "{:?}", e),
+            Stmt::Expr(e) => write!(f, "{}", e),
             Stmt::If(cond, then, els) => {
-                write!(f, "if {:?} ", cond)?;
+                write!(f, "if {} ", cond)?;
 
                 then.fmt_with_indent(f, ind_lvl, pretty)?;
 
@@ -166,14 +168,14 @@ impl Stmt {
                 Ok(())
             }
             Stmt::While(cond, body) => {
-                write!(f, "while {:?} ", cond)?;
+                write!(f, "while {} ", cond)?;
                 body.fmt_with_indent(f, ind_lvl, pretty)
             }
             Stmt::For(id, start, end, body) => {
-                write!(f, "for {} = {:?} to {:?} ", id, start, end)?;
+                write!(f, "for {} = {} to {} ", id, start, end)?;
                 body.fmt_with_indent(f, ind_lvl, pretty)
             }
-            Stmt::Return(e) => write!(f, "return {:?}", e),
+            Stmt::Return(e) => write!(f, "return {}", e),
             Stmt::Block(stmts) => {
                 write!(f, "{{")?;
                 if pretty {
@@ -193,28 +195,35 @@ impl Stmt {
             Stmt::FnDef(id, params, ret, body) => {
                 write!(f, "fn {}(", id)?;
                 for (i, (id, t)) in params.iter().enumerate() {
-                    write!(f, "{}: {:?}", id, t)?;
+                    write!(f, "{}: {}", id, t)?;
                     if i != params.len() - 1 {
                         write!(f, ", ")?;
                     }
                 }
                 write!(f, ")")?;
                 if let Some(ret) = ret {
-                    write!(f, ": {:?} ", ret)?;
+                    write!(f, ": {}", ret)?;
                 }
-                body.fmt_with_indent(f, ind_lvl, pretty)
+                write!(f, " ")?;
+                body.fmt_with_indent(f, ind_lvl, pretty)?;
+                
+                if pretty {
+                    writeln!(f)?;
+                }
+
+                Ok(())
             }
             Stmt::Empty => write!(f, ""),
         }
     }
 }
 
-impl fmt::Debug for Stmt {
+impl fmt::Display for Stmt {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.fmt_with_indent(f, 0, f.alternate())
     }
 }
-impl fmt::Debug for Type {
+impl fmt::Display for Type {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Type::Int => write!(f, "int"),
@@ -222,7 +231,7 @@ impl fmt::Debug for Type {
             Type::Char => write!(f, "char"),
             Type::Str => write!(f, "str"),
             Type::Bool => write!(f, "bool"),
-            Type::Array(t) => write!(f, "{:?}[]", t),
+            Type::Array(t) => write!(f, "{}[]", t),
             Type::Error => write!(f, "err_type"),
         }
     }

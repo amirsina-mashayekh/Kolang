@@ -31,7 +31,7 @@ fn main() -> io::Result<()> {
     let ast = p.parse()?;
 
     for stmt in ast {
-        println!("{:#?}", stmt);
+        println!("{:#}", stmt);
     }
 
     Ok(())

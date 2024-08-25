@@ -594,6 +594,14 @@ impl<R: Read> Parser<R> {
 
                 e
             }
+            TokenType::KwTrue => {
+                self.next()?;
+                ast::Expr::LiteralBool(true)
+            }
+            TokenType::KwFalse => {
+                self.next()?;
+                ast::Expr::LiteralBool(false)
+            }
             TokenType::LBracket => {
                 // array_lit
                 self.next()?;
