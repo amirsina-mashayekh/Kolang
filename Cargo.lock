@@ -12,3 +12,10 @@ version = "0.0.1"
 dependencies = [
  "lexer",
 ]
+
+[[package]]
+name = "semantic"
+version = "0.0.1"
+dependencies = [
+ "parser",
+]
