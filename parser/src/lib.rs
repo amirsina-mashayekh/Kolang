@@ -11,7 +11,7 @@ use lexer::{
 };
 
 mod syntax;
-mod ast;
+pub mod ast;
 
 /// The `Parser<R>` struct allows you to parse Kolang code from any byte source
 /// which implements [`Read`] trait (file, network, in-memory buffer, etc.).
